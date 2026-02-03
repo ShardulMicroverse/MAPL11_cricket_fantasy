@@ -247,17 +247,18 @@ export default function TeamBuilderPage() {
       {step === 1 ? (
         <>
           {/* Role Filter */}
-          <div className="tabs">
-            {['all', 'Wicket-Keeper', 'Batsman', 'All-Rounder', 'Bowler'].map(role => (
-              <button
-                key={role}
-                className={`tab ${filter === role ? 'active' : ''}`}
-                onClick={() => setFilter(role)}
-              >
-                {role === 'all' ? 'All' : role === 'Wicket-Keeper' ? 'WK' : role.split('-')[0]}
-              </button>
-            ))}
-          </div>
+          {/* Role Filter */}
+<div className="tabs">
+  {['all', 'Wicket-Keeper', 'Batsman', 'All-Rounder', 'Bowler'].map(role => (
+    <button
+      key={role}
+      className={`tab ${filter === role ? 'active' : ''}`}
+      onClick={() => setFilter(role)}
+    >
+      {role === 'all' ? 'All' : TEAM_RULES.ROLE_REQUIREMENTS[role]?.label || role}
+    </button>
+  ))}
+</div>
 
           {/* Players List */}
           <div className="players-list">
