@@ -254,7 +254,7 @@ export default function TeamBuilderPage() {
                 className={`tab ${filter === role ? 'active' : ''}`}
                 onClick={() => setFilter(role)}
               >
-                {role === 'all' ? 'AR' : role === 'Wicket-Keeper' ? 'WK' : role.split('-')[0]}
+                {role === 'all' ? 'All' : role === 'Wicket-Keeper' ? 'WK' : role.split('-')[0]}
               </button>
             ))}
           </div>
