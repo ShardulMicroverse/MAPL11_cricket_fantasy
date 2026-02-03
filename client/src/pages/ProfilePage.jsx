@@ -167,9 +167,11 @@ export default function ProfilePage() {
       >
         <p style={{ margin: 0 }}>
           © {new Date().getFullYear()} Created by{' '}
-          <span style={{ color: '#4aafdee6', fontWeight: '600' }}>Atharva</span>
-          {' '}&{' '}
-          <span style={{ color: '#4aafdee6', fontWeight: '600' }}>Shardul</span>
+          <span style={{ color: '#4aafdee6', fontWeight: '600' }}>Atharva N</span>
+          {' '},{' '}
+          <span style={{ color: '#4aafdee6', fontWeight: '600' }}>Shardul M</span>
+           {' '}&{' '}
+          <span style={{ color: '#4aafdee6', fontWeight: '600' }}>Siddharth M</span>
         </p>
       </div>
     </div>
