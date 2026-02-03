@@ -153,6 +153,25 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Copyright Footer */}
+      <div 
+        style={{
+          textAlign: 'center',
+          padding: '24px 16px',
+          marginTop: '20px',
+          color: '#888',
+          fontSize: '14px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        <p style={{ margin: 0 }}>
+          © {new Date().getFullYear()} Created by{' '}
+          <span style={{ color: '#4aafdee6', fontWeight: '600' }}>Atharva</span>
+          {' '}&{' '}
+          <span style={{ color: '#4aafdee6', fontWeight: '600' }}>Shardul</span>
+        </p>
+      </div>
     </div>
   )
 }
