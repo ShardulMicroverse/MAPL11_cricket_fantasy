@@ -5,6 +5,7 @@ const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const permanentTeamService = require('../services/permanentTeamService');
 
+
 // Team composition rules
 const TEAM_RULES = {
   TOTAL_PLAYERS: 11,
@@ -62,6 +63,196 @@ const validateTeamComposition = async (playerIds, matchId) => {
 
   return { totalCredits, players };
 };
+
+
+
+// @desc    Get all fantasy teams for a match (after lock)
+// @route   GET /api/fantasy/:matchId/all-teams
+const getAllFantasyTeamsForMatch = async (req, res, next) => {
+  try {
+    const { matchId } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const currentUserId = req.user._id;
+
+    // Check if match exists
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return next(new ApiError(404, 'Match not found'));
+    }
+
+    // Check if team selection is locked
+    const now = new Date();
+    const isLocked = !match.isTeamSelectionOpen || now >= new Date(match.lockTime);
+    
+    if (!isLocked) {
+      return next(new ApiError(403, 'Team selection is still open. You can view other teams after lock time.'));
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Get fantasy teams with user info, sorted by points (descending), then by creation time (ascending)
+    const [teams, total] = await Promise.all([
+      FantasyTeam.find({ matchId })
+        .populate('userId', 'displayName avatar')
+        .select('userId fantasyPoints createdAt')
+        .sort({ fantasyPoints: -1, createdAt: 1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .lean(),
+      FantasyTeam.countDocuments({ matchId })
+    ]);
+
+    // Calculate rank for each team properly (handling ties with createdAt as tiebreaker)
+    const teamsWithRank = await Promise.all(teams.map(async (team) => {
+      // Count teams that rank higher:
+      // - Teams with more points, OR
+      // - Teams with same points but created earlier
+      const higherRanked = await FantasyTeam.countDocuments({
+        matchId,
+        $or: [
+          { fantasyPoints: { $gt: team.fantasyPoints } },
+          { 
+            fantasyPoints: team.fantasyPoints,
+            createdAt: { $lt: team.createdAt }
+          }
+        ]
+      });
+      
+      return {
+        ...team,
+        rank: higherRanked + 1,
+        isCurrentUser: team.userId._id.toString() === currentUserId.toString()
+      };
+    }));
+
+    // Find current user's entry and rank
+    let currentUserEntry = null;
+    
+    const currentUserTeam = await FantasyTeam.findOne({ matchId, userId: currentUserId })
+      .populate('userId', 'displayName avatar')
+      .select('userId fantasyPoints createdAt')
+      .lean();
+    
+    if (currentUserTeam) {
+      // Count teams that rank higher than current user
+      const higherRanked = await FantasyTeam.countDocuments({
+        matchId,
+        $or: [
+          { fantasyPoints: { $gt: currentUserTeam.fantasyPoints } },
+          { 
+            fantasyPoints: currentUserTeam.fantasyPoints,
+            createdAt: { $lt: currentUserTeam.createdAt }
+          }
+        ]
+      });
+      const currentUserRank = higherRanked + 1;
+      currentUserEntry = {
+        ...currentUserTeam,
+        rank: currentUserRank,
+        isCurrentUser: true
+      };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        teams: teamsWithRank,
+        currentUser: currentUserEntry,
+        match: {
+          _id: match._id,
+          team1: match.team1,
+          team2: match.team2,
+          status: match.status
+        },
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get a specific user's fantasy team for a match (after lock)
+// @route   GET /api/fantasy/:matchId/team/:userId
+const getUserFantasyTeam = async (req, res, next) => {
+  try {
+    const { matchId, odUserId } = req.params;
+    // Handle both 'userId' and 'odUserId' param names for flexibility
+    const targetUserId = odUserId || req.params.userId;
+
+    // Check if match exists
+    const match = await Match.findById(matchId);
+    if (!match) {
+      return next(new ApiError(404, 'Match not found'));
+    }
+
+    // Check if team selection is locked (skip check if viewing own team)
+    const isOwnTeam = targetUserId === req.user._id.toString();
+    const now = new Date();
+    const isLocked = !match.isTeamSelectionOpen || now >= new Date(match.lockTime);
+    
+    if (!isLocked && !isOwnTeam) {
+      return next(new ApiError(403, 'Team selection is still open. You can view other teams after lock time.'));
+    }
+
+    // Get the target user info
+    const targetUser = await User.findById(targetUserId).select('displayName avatar');
+    if (!targetUser) {
+      return next(new ApiError(404, 'User not found'));
+    }
+
+    // Get the user's fantasy team
+    const fantasyTeam = await FantasyTeam.findOne({ matchId, userId: targetUserId })
+      .populate('userId', 'displayName avatar')
+      .populate('players.playerId');
+
+    if (!fantasyTeam) {
+      return next(new ApiError(404, 'Fantasy team not found for this user'));
+    }
+
+    // Calculate user's rank properly (with tiebreaker)
+    const higherRanked = await FantasyTeam.countDocuments({
+      matchId,
+      $or: [
+        { fantasyPoints: { $gt: fantasyTeam.fantasyPoints } },
+        { 
+          fantasyPoints: fantasyTeam.fantasyPoints,
+          createdAt: { $lt: fantasyTeam.createdAt }
+        }
+      ]
+    });
+    const rank = higherRanked + 1;
+    const totalTeams = await FantasyTeam.countDocuments({ matchId });
+
+    res.json({
+      success: true,
+      data: {
+        team: {
+          ...fantasyTeam.toObject(),
+          rank,
+          totalTeams
+        },
+        match: {
+          _id: match._id,
+          team1: match.team1,
+          team2: match.team2,
+          status: match.status,
+          matchDate: match.matchDate
+        },
+        user: targetUser
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
 
 // @desc    Get user's fantasy team for a match
 // @route   GET /api/fantasy/:matchId
@@ -246,5 +437,7 @@ module.exports = {
   createOrUpdateFantasyTeam,
   validateTeam,
   deleteFantasyTeam,
+  getAllFantasyTeamsForMatch,
+  getUserFantasyTeam,
   TEAM_RULES
 };

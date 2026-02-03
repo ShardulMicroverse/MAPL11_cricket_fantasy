@@ -1,21 +1,20 @@
 import api from './api'
 
 export const fantasyService = {
-  async getFantasyTeam(matchId) {
-    return api.get(`/fantasy/${matchId}`)
-  },
+  // Existing methods...
+  getFantasyTeam: (matchId) => api.get(`/fantasy/${matchId}`),
+  
+  createOrUpdateTeam: (matchId, teamData) => api.post(`/fantasy/${matchId}`, teamData),
+  
+  validateTeam: (matchId, playerIds) => 
+    api.get(`/fantasy/${matchId}/validate?players=${playerIds.join(',')}`),
+  
+  deleteTeam: (matchId) => api.delete(`/fantasy/${matchId}`),
 
-  async createOrUpdateTeam(matchId, data) {
-    return api.post(`/fantasy/${matchId}`, data)
-  },
-
-  async validateTeam(matchId, playerIds) {
-    return api.get(`/fantasy/${matchId}/validate`, {
-      params: { players: playerIds.join(',') }
-    })
-  },
-
-  async deleteTeam(matchId) {
-    return api.delete(`/fantasy/${matchId}`)
-  }
+  // New methods for viewing other teams
+  getAllTeamsForMatch: (matchId, page = 1, limit = 20) => 
+    api.get(`/fantasy/${matchId}/all-teams?page=${page}&limit=${limit}`),
+  
+  getUserTeamForMatch: (matchId, userId) => 
+    api.get(`/fantasy/${matchId}/team/${userId}`)
 }

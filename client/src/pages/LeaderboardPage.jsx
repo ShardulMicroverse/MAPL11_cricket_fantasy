@@ -54,11 +54,14 @@ export default function LeaderboardPage() {
     fetchData()
   }, [matchId, tab])
 
-  const getRankClass = (rank) => {
-    if (rank === 1) return 'gold'
-    if (rank === 2) return 'silver'
-    if (rank === 3) return 'bronze'
-    return ''
+  const getItemClass = (entry, index) => {
+    const rank = entry.rank || index + 1
+    let classes = 'leaderboard-item'
+    
+    if (rank === 1) classes += ' first-place'
+    if (entry.userId === user?._id) classes += ' current-user'
+    
+    return classes
   }
 
   return (
@@ -141,13 +144,13 @@ export default function LeaderboardPage() {
             leaderboard.map((entry, index) => (
               <div
                 key={entry.userId || entry.teamId || index}
-                className={`leaderboard-item ${entry.userId === user?._id ? 'current-user' : ''}`}
+                className={getItemClass(entry, index)}
               >
-                <div className={`leaderboard-rank ${getRankClass(entry.rank || index + 1)}`}>
+                <div className={`leaderboard-rank ${(entry.rank || index + 1) === 1 ? 'first' : ''}`}>
                   {entry.rank || index + 1}
                 </div>
                 <div className="leaderboard-user">
-                  <div className="leaderboard-avatar">
+                  <div className={`leaderboard-avatar ${(entry.rank || index + 1) === 1 ? 'first' : ''}`}>
                     {getInitials(entry.displayName || entry.teamName || entry.name)}
                   </div>
                   <div className="leaderboard-user-info">
@@ -164,6 +167,7 @@ export default function LeaderboardPage() {
                 </div>
                 <div className="leaderboard-points">
                   {entry.totalPoints || entry.points || 0}
+                  <span className="points-label">pts</span>
                 </div>
               </div>
             ))

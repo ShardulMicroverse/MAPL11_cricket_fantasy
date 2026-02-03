@@ -14,6 +14,10 @@ import MyTeamPage from './pages/MyTeamPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
 import AdminPage from './pages/AdminPage'
+import ViewOtherTeamsPage from './pages/ViewOtherTeamsPage'
+import ViewUserTeamPage from './pages/ViewUserTeamPage'
+
+
 
 // Permanent Team Pages
 import TeamJoinPage from './pages/TeamJoinPage'
@@ -229,6 +233,18 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+
+
+
+
+           <Route path="/match/:matchId/teams" element={<ViewOtherTeamsPage />} />
+           <Route path="/match/:matchId/teams/:odUserId" element={<ViewUserTeamPage />} />
+
+
+
+
+
             <Route
               path="/my-team"
               element={
