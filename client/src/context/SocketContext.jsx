@@ -29,7 +29,7 @@ export function SocketProvider({ children }) {
     const newSocket = io(SOCKET_URL, {
       transports: ['websocket'], // 🔥 critical for mobile data
       extraHeaders: {
-        Authorization: Bearer ${token}
+        Authorization: 'Bearer ${token}'
       }
     })
 
