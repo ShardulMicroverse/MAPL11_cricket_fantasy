@@ -26,11 +26,16 @@ export function SocketProvider({ children }) {
     if (!token) return;
 
     // ✅ Create socket connection (mobile-safe)
-    const newSocket = io(SOCKET_URL, {
-      transports: ['websocket'], // 🔥 critical for mobile data
-      extraHeaders: {
-        Authorization: `Bearer ${token}`
-      }
+   const newSocket = io(SOCKET_URL, {
+  transports: ['websocket', 'polling'], // 🔥 allow fallback
+  forceNew: true,
+  reconnection: true,
+  timeout: 20000,
+  auth: { token },
+  extraHeaders: {
+    Authorization: `Bearer ${token}`
+  }
+})
     });
 
     newSocket.on('connect', () => {
