@@ -4,7 +4,8 @@ import { AuthContext } from './AuthContext'
 
 export const SocketContext = createContext(null)
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
+// ⚠️ IMPORTANT: no localhost fallback in production
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL
 
 export function SocketProvider({ children }) {
   const { user } = useContext(AuthContext)
@@ -12,53 +13,69 @@ export function SocketProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
-    if (user) {
-      const token = localStorage.getItem('token')
-      const newSocket = io(SOCKET_URL, {
-        auth: { token }
-      })
-
-      newSocket.on('connect', () => {
-        console.log('Socket connected')
-        setIsConnected(true)
-      })
-
-      newSocket.on('disconnect', () => {
-        console.log('Socket disconnected')
-        setIsConnected(false)
-      })
-
-      newSocket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error.message)
-      })
-
-      setSocket(newSocket)
-
-      return () => {
-        newSocket.close()
-      }
-    } else {
+    // If user is not logged in → ensure socket is closed
+    if (!user) {
       if (socket) {
-        socket.close()
+        socket.disconnect()
         setSocket(null)
       }
+      return
+    }
+
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    // ✅ Create socket connection (mobile-safe)
+    const newSocket = io(SOCKET_URL, {
+      transports: ['websocket'], // 🔥 critical for mobile data
+      extraHeaders: {
+        Authorization: Bearer ${token}
+      }
+    })
+
+    newSocket.on('connect', () => {
+      console.log('✅ Socket connected')
+      setIsConnected(true)
+    })
+
+    newSocket.on('disconnect', () => {
+      console.log('❌ Socket disconnected')
+      setIsConnected(false)
+    })
+
+    newSocket.on('connect_error', (error) => {
+      console.error('⚠️ Socket error:', error.message)
+    })
+
+    setSocket(newSocket)
+
+    // Cleanup on logout / unmount
+    return () => {
+      newSocket.disconnect()
     }
   }, [user])
 
   const joinMatch = (matchId) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit('join-match', { matchId })
     }
   }
 
   const leaveMatch = (matchId) => {
-    if (socket) {
+    if (socket && isConnected) {
       socket.emit('leave-match', { matchId })
     }
   }
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, joinMatch, leaveMatch }}>
+    <SocketContext.Provider
+      value={{
+        socket,
+        isConnected,
+        joinMatch,
+        leaveMatch
+      }}
+    >
       {children}
     </SocketContext.Provider>
   )
