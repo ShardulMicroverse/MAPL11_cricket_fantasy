@@ -44,7 +44,7 @@ const initializeSocket = (httpServer) => {
   io.on('connection', (socket) => {
     const userId = socket.user.id;
     userSockets.set(userId, socket.id);
-    console.log(User connected: ${userId});
+    console.log('User connected: ${userId}');
 
     socket.on('join-match', ({ matchId }) => {
       socket.join(match:${matchId});
@@ -52,7 +52,7 @@ const initializeSocket = (httpServer) => {
         matchRooms.set(matchId, new Set());
       }
       matchRooms.get(matchId).add(socket.id);
-      console.log(User ${userId} joined match room: ${matchId});
+      console.log('User ${userId} joined match room: ${matchId}');
     });
 
     socket.on('leave-match', ({ matchId }) => {
@@ -62,7 +62,7 @@ const initializeSocket = (httpServer) => {
 
     socket.on('disconnect', () => {
       userSockets.delete(userId);
-      console.log(User disconnected: ${userId});
+      console.log('User disconnected: ${userId}');
     });
   });
 
