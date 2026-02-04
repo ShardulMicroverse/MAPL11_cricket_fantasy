@@ -3,8 +3,12 @@ const jwt = require('jsonwebtoken');
 const config = require('../config/environment');
 
 let io;
-const userSockets = new Map(); // userId -> socketId
-const matchRooms = new Map(); // matchId -> Set of socketIds
+
+// userId -> socketId
+const userSockets = new Map();
+
+// matchId -> Set of socketIds
+const matchRooms = new Map();
 
 const initializeSocket = (httpServer) => {
   const allowedOrigins = [
@@ -22,7 +26,7 @@ const initializeSocket = (httpServer) => {
     }
   });
 
-  // ✅ AUTHENTICATION MIDDLEWARE (FIXED)
+  // ===== AUTH MIDDLEWARE =====
   io.use((socket, next) => {
     const authHeader = socket.handshake.headers.authorization;
 
@@ -30,102 +34,112 @@ const initializeSocket = (httpServer) => {
       return next(new Error('Authentication required'));
     }
 
-    const token = authHeader.split(' ')[1]; // ✅ FIXED
+    const token = authHeader.split(' ')[1];
 
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
       socket.user = decoded;
       next();
-    } catch (error) {
+    } catch (err) {
       next(new Error('Invalid token'));
     }
   });
 
   io.on('connection', (socket) => {
     const userId = socket.user.id;
-    userSockets.set(userId, socket.id);
-    console.log('User connected: ${userId}');
+
+    userSockets.set(userId.toString(), socket.id);
+    console.log(`User connected: ${userId}`);
 
     socket.on('join-match', ({ matchId }) => {
-      socket.join(match:${matchId});
+      const room = `match:${matchId}`;
+
+      socket.join(room);
+
       if (!matchRooms.has(matchId)) {
         matchRooms.set(matchId, new Set());
       }
+
       matchRooms.get(matchId).add(socket.id);
-      console.log('User ${userId} joined match room: ${matchId}');
+      console.log(`User ${userId} joined match room: ${matchId}`);
     });
 
     socket.on('leave-match', ({ matchId }) => {
-      socket.leave(match:${matchId});
+      const room = `match:${matchId}`;
+
+      socket.leave(room);
       matchRooms.get(matchId)?.delete(socket.id);
     });
 
     socket.on('disconnect', () => {
-      userSockets.delete(userId);
-      console.log('User disconnected: ${userId}');
+      userSockets.delete(userId.toString());
+      console.log(`User disconnected: ${userId}`);
     });
   });
 
   return io;
 };
 
-// ===== Broadcasters (unchanged) =====
+// ===== Broadcasters =====
 
 const broadcastScoreUpdate = (matchId, liveData) => {
-  if (io) {
-    io.to(match:${matchId}).emit('score-update', { matchId, liveData });
-  }
+  if (!io) return;
+  io.to(`match:${matchId}`).emit('score-update', { matchId, liveData });
 };
 
 const notifyUser = (userId, event, data) => {
-  if (io) {
-    const socketId = userSockets.get(userId);
-    if (socketId) {
-      io.to(socketId).emit(event, data);
-    }
+  if (!io) return;
+
+  const socketId = userSockets.get(userId.toString());
+  if (socketId) {
+    io.to(socketId).emit(event, data);
   }
 };
 
 const broadcastMatchLocked = (matchId) => {
-  if (io) {
-    io.to(match:${matchId}).emit('match-locked', { matchId });
-  }
+  if (!io) return;
+  io.to(`match:${matchId}`).emit('match-locked', { matchId });
 };
 
 const broadcastLeaderboardUpdate = (matchId, type, entries) => {
-  if (io) {
-    io.to(match:${matchId}).emit('leaderboard-update', { matchId, type, entries });
-  }
+  if (!io) return;
+  io.to(`match:${matchId}`).emit('leaderboard-update', {
+    matchId,
+    type,
+    entries
+  });
 };
 
 const broadcastTeamMatched = (userIds, matchId, teamData) => {
-  if (io) {
-    userIds.forEach(userId => {
-      notifyUser(userId.toString(), 'team-matched', { matchId, ...teamData });
+  if (!io) return;
+
+  userIds.forEach((userId) => {
+    notifyUser(userId.toString(), 'team-matched', {
+      matchId,
+      ...teamData
     });
-  }
+  });
 };
 
 const broadcastPermanentTeamFormed = (userIds, teamData) => {
-  if (io) {
-    userIds.forEach(userId => {
-      notifyUser(userId.toString(), 'permanent-team-formed', teamData);
-    });
-  }
+  if (!io) return;
+
+  userIds.forEach((userId) => {
+    notifyUser(userId.toString(), 'permanent-team-formed', teamData);
+  });
 };
 
 const broadcastTeamBonusAwarded = (userIds, data) => {
-  if (io) {
-    userIds.forEach(userId => {
-      notifyUser(userId.toString(), 'team-bonus-awarded', data);
-    });
-  }
+  if (!io) return;
+
+  userIds.forEach((userId) => {
+    notifyUser(userId.toString(), 'team-bonus-awarded', data);
+  });
 };
 
 const broadcastTeamLeaderboardUpdate = (data) => {
-  if (io) {
-    io.emit('team-leaderboard-update', data);
-  }
+  if (!io) return;
+  io.emit('team-leaderboard-update', data);
 };
 
 module.exports = {
