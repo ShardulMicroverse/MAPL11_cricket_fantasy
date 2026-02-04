@@ -18,13 +18,16 @@ const initializeSocket = (httpServer) => {
     'https://mapl11.vercel.app'
   ].filter(Boolean);
 
-  io = new Server(httpServer, {
-    cors: {
-      origin: allowedOrigins,
-      methods: ['GET', 'POST'],
-      credentials: true
-    }
-  });
+ io = new Server(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  },
+  transports: ['websocket', 'polling'],
+  pingTimeout: 60000,
+  pingInterval: 25000
+});
+
 
   // ===== AUTH MIDDLEWARE =====
   io.use((socket, next) => {
