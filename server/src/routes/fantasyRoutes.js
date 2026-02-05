@@ -16,8 +16,8 @@ router.use(protect); // All fantasy routes require authentication
 router.get('/:matchId/all-teams', getAllFantasyTeamsForMatch);
 
 // Get specific user's team for a match (after lock)
-// Using 'odUserId' to match the frontend route param
-router.get('/:matchId/teams/:odUserId', getUserFantasyTeam);
+// FIXED: Changed from /teams/:odUserId to /team/:odUserId to match frontend
+router.get('/:matchId/team/:odUserId', getUserFantasyTeam);
 
 // Existing routes
 router.get('/:matchId/validate', validateTeam); // Must come before /:matchId
