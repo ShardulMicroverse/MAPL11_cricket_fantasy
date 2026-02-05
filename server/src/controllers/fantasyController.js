@@ -5,7 +5,6 @@ const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const permanentTeamService = require('../services/permanentTeamService');
 
-
 // Team composition rules
 const TEAM_RULES = {
   TOTAL_PLAYERS: 11,
@@ -64,8 +63,6 @@ const validateTeamComposition = async (playerIds, matchId) => {
   return { totalCredits, players };
 };
 
-
-
 // @desc    Get all fantasy teams for a match (after lock)
 // @route   GET /api/fantasy/:matchId/all-teams
 const getAllFantasyTeamsForMatch = async (req, res, next) => {
@@ -75,7 +72,10 @@ const getAllFantasyTeamsForMatch = async (req, res, next) => {
     const currentUserId = req.user._id;
 
     // Check if match exists
-    const match = await Match.findById(matchId);
+    const match = await Match.findById(matchId)
+      .populate('team1', 'name shortName')
+      .populate('team2', 'name shortName');
+      
     if (!match) {
       return next(new ApiError(404, 'Match not found'));
     }
@@ -102,13 +102,40 @@ const getAllFantasyTeamsForMatch = async (req, res, next) => {
       FantasyTeam.countDocuments({ matchId })
     ]);
 
+    // CRITICAL: Filter out teams where userId is null (deleted users)
+    const validTeams = teams.filter(team => team.userId != null);
+
+    // Handle case where no valid teams exist
+    if (validTeams.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          teams: [],
+          currentUser: null,
+          match: {
+            _id: match._id,
+            team1: match.team1,
+            team2: match.team2,
+            status: match.status
+          },
+          pagination: {
+            page: Number(page),
+            limit: Number(limit),
+            total: 0,
+            pages: 0
+          }
+        }
+      });
+    }
+
     // Calculate rank for each team properly (handling ties with createdAt as tiebreaker)
-    const teamsWithRank = await Promise.all(teams.map(async (team) => {
+    const teamsWithRank = await Promise.all(validTeams.map(async (team) => {
       // Count teams that rank higher:
       // - Teams with more points, OR
       // - Teams with same points but created earlier
       const higherRanked = await FantasyTeam.countDocuments({
         matchId,
+        userId: { $ne: null }, // Only count teams with valid users
         $or: [
           { fantasyPoints: { $gt: team.fantasyPoints } },
           { 
@@ -133,10 +160,11 @@ const getAllFantasyTeamsForMatch = async (req, res, next) => {
       .select('userId fantasyPoints createdAt')
       .lean();
     
-    if (currentUserTeam) {
+    if (currentUserTeam && currentUserTeam.userId) {
       // Count teams that rank higher than current user
       const higherRanked = await FantasyTeam.countDocuments({
         matchId,
+        userId: { $ne: null }, // Only count teams with valid users
         $or: [
           { fantasyPoints: { $gt: currentUserTeam.fantasyPoints } },
           { 
@@ -153,6 +181,12 @@ const getAllFantasyTeamsForMatch = async (req, res, next) => {
       };
     }
 
+    // Count only valid teams for total
+    const validTotal = await FantasyTeam.countDocuments({ 
+      matchId,
+      userId: { $ne: null }
+    });
+
     res.json({
       success: true,
       data: {
@@ -167,8 +201,8 @@ const getAllFantasyTeamsForMatch = async (req, res, next) => {
         pagination: {
           page: Number(page),
           limit: Number(limit),
-          total,
-          pages: Math.ceil(total / limit)
+          total: validTotal,
+          pages: Math.ceil(validTotal / limit)
         }
       }
     });
@@ -178,7 +212,7 @@ const getAllFantasyTeamsForMatch = async (req, res, next) => {
 };
 
 // @desc    Get a specific user's fantasy team for a match (after lock)
-// @route   GET /api/fantasy/:matchId/team/:userId
+// @route   GET /api/fantasy/:matchId/teams/:odUserId
 const getUserFantasyTeam = async (req, res, next) => {
   try {
     const { matchId, odUserId } = req.params;
@@ -186,7 +220,10 @@ const getUserFantasyTeam = async (req, res, next) => {
     const targetUserId = odUserId || req.params.userId;
 
     // Check if match exists
-    const match = await Match.findById(matchId);
+    const match = await Match.findById(matchId)
+      .populate('team1', 'name shortName')
+      .populate('team2', 'name shortName');
+      
     if (!match) {
       return next(new ApiError(404, 'Match not found'));
     }
@@ -215,9 +252,15 @@ const getUserFantasyTeam = async (req, res, next) => {
       return next(new ApiError(404, 'Fantasy team not found for this user'));
     }
 
-    // Calculate user's rank properly (with tiebreaker)
+    // CRITICAL: Check if userId populated correctly
+    if (!fantasyTeam.userId) {
+      return next(new ApiError(404, 'User information not available for this team'));
+    }
+
+    // Calculate user's rank properly (with tiebreaker, only counting valid teams)
     const higherRanked = await FantasyTeam.countDocuments({
       matchId,
+      userId: { $ne: null }, // Only count teams with valid users
       $or: [
         { fantasyPoints: { $gt: fantasyTeam.fantasyPoints } },
         { 
@@ -227,7 +270,10 @@ const getUserFantasyTeam = async (req, res, next) => {
       ]
     });
     const rank = higherRanked + 1;
-    const totalTeams = await FantasyTeam.countDocuments({ matchId });
+    const totalTeams = await FantasyTeam.countDocuments({ 
+      matchId,
+      userId: { $ne: null } 
+    });
 
     res.json({
       success: true,
@@ -251,8 +297,6 @@ const getUserFantasyTeam = async (req, res, next) => {
     next(error);
   }
 };
-
-
 
 // @desc    Get user's fantasy team for a match
 // @route   GET /api/fantasy/:matchId
