@@ -3,79 +3,66 @@ const jwt = require('jsonwebtoken');
 const config = require('../config/environment');
 
 let io;
-
-// userId -> socketId
-const userSockets = new Map();
-
-// matchId -> Set of socketIds
-const matchRooms = new Map();
+const userSockets = new Map(); // userId -> socketId
+const matchRooms = new Map(); // matchId -> Set of socketIds
 
 const initializeSocket = (httpServer) => {
+  // Allow multiple origins for Socket.io
   const allowedOrigins = [
     config.clientUrl,
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://mapl11.vercel.app'
+    'https://mapl-11-cricket-fantasy.vercel.app'
   ].filter(Boolean);
 
- io = new Server(httpServer, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true
-  },
-  transports: ['websocket', 'polling'],
-  pingTimeout: 60000,
-  pingInterval: 25000
-});
+  io = new Server(httpServer, {
+    cors: {
+      origin: allowedOrigins,
+      methods: ['GET', 'POST'],
+      credentials: true
+    }
+  });
 
-
-  // ===== AUTH MIDDLEWARE =====
+  // Authentication middleware
   io.use((socket, next) => {
-    const authHeader = socket.handshake.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const token = socket.handshake.auth.token;
+    if (!token) {
       return next(new Error('Authentication required'));
     }
-
-    const token = authHeader.split(' ')[1];
 
     try {
       const decoded = jwt.verify(token, config.jwt.secret);
       socket.user = decoded;
       next();
-    } catch (err) {
+    } catch (error) {
       next(new Error('Invalid token'));
     }
   });
 
   io.on('connection', (socket) => {
     const userId = socket.user.id;
-
-    userSockets.set(userId.toString(), socket.id);
+    userSockets.set(userId, socket.id);
     console.log(`User connected: ${userId}`);
 
+    // Join match room
     socket.on('join-match', ({ matchId }) => {
-      const room = `match:${matchId}`;
-
-      socket.join(room);
-
+      socket.join(`match:${matchId}`);
       if (!matchRooms.has(matchId)) {
         matchRooms.set(matchId, new Set());
       }
-
       matchRooms.get(matchId).add(socket.id);
       console.log(`User ${userId} joined match room: ${matchId}`);
     });
 
+    // Leave match room
     socket.on('leave-match', ({ matchId }) => {
-      const room = `match:${matchId}`;
-
-      socket.leave(room);
+      socket.leave(`match:${matchId}`);
       matchRooms.get(matchId)?.delete(socket.id);
     });
 
+    // Disconnect
     socket.on('disconnect', () => {
-      userSockets.delete(userId.toString());
+      userSockets.delete(userId);
       console.log(`User disconnected: ${userId}`);
     });
   });
@@ -83,66 +70,65 @@ const initializeSocket = (httpServer) => {
   return io;
 };
 
-// ===== Broadcasters =====
-
+// Helper functions to broadcast events
 const broadcastScoreUpdate = (matchId, liveData) => {
-  if (!io) return;
-  io.to(`match:${matchId}`).emit('score-update', { matchId, liveData });
+  if (io) {
+    io.to(`match:${matchId}`).emit('score-update', { matchId, liveData });
+  }
 };
 
 const notifyUser = (userId, event, data) => {
-  if (!io) return;
-
-  const socketId = userSockets.get(userId.toString());
-  if (socketId) {
-    io.to(socketId).emit(event, data);
+  if (io) {
+    const socketId = userSockets.get(userId);
+    if (socketId) {
+      io.to(socketId).emit(event, data);
+    }
   }
 };
 
 const broadcastMatchLocked = (matchId) => {
-  if (!io) return;
-  io.to(`match:${matchId}`).emit('match-locked', { matchId });
+  if (io) {
+    io.to(`match:${matchId}`).emit('match-locked', { matchId });
+  }
 };
 
 const broadcastLeaderboardUpdate = (matchId, type, entries) => {
-  if (!io) return;
-  io.to(`match:${matchId}`).emit('leaderboard-update', {
-    matchId,
-    type,
-    entries
-  });
+  if (io) {
+    io.to(`match:${matchId}`).emit('leaderboard-update', { matchId, type, entries });
+  }
 };
 
 const broadcastTeamMatched = (userIds, matchId, teamData) => {
-  if (!io) return;
-
-  userIds.forEach((userId) => {
-    notifyUser(userId.toString(), 'team-matched', {
-      matchId,
-      ...teamData
+  if (io) {
+    userIds.forEach(userId => {
+      notifyUser(userId.toString(), 'team-matched', { matchId, ...teamData });
     });
-  });
+  }
 };
 
+// Broadcast permanent team formation
 const broadcastPermanentTeamFormed = (userIds, teamData) => {
-  if (!io) return;
-
-  userIds.forEach((userId) => {
-    notifyUser(userId.toString(), 'permanent-team-formed', teamData);
-  });
+  if (io) {
+    userIds.forEach(userId => {
+      notifyUser(userId.toString(), 'permanent-team-formed', teamData);
+    });
+  }
 };
 
+// Broadcast team bonus awarded
 const broadcastTeamBonusAwarded = (userIds, data) => {
-  if (!io) return;
-
-  userIds.forEach((userId) => {
-    notifyUser(userId.toString(), 'team-bonus-awarded', data);
-  });
+  if (io) {
+    userIds.forEach(userId => {
+      notifyUser(userId.toString(), 'team-bonus-awarded', data);
+    });
+  }
 };
 
+// Broadcast team leaderboard update
 const broadcastTeamLeaderboardUpdate = (data) => {
-  if (!io) return;
-  io.emit('team-leaderboard-update', data);
+  if (io) {
+    io.emit('team-leaderboard-update', data);
+  }
 };
 
 module.exports = {
