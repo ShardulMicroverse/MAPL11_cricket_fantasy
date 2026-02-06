@@ -15,8 +15,8 @@
   --bg-card: rgba(15, 18, 25, 0.8);
   --bg-elevated: rgba(20, 24, 32, 0.9);
   --bg-hover: rgba(30, 35, 45, 0.6);
-  --bg-glass: rgba(15, 18, 25, 0.6);
-  --bg-glass-light: rgba(255, 255, 255, 0.03);
+  --bg-glass: rgba(15, 18, 25, 1);
+  --bg-glass-light: rgba(255, 255, 255, 1);
 
   /* Primary - Emerald Gradient */
   --primary: #2563eb;            /* rich royal blue */
