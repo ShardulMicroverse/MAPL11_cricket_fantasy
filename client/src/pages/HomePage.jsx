@@ -170,7 +170,7 @@ export default function HomePage() {
             </div>
             <h4>Join a Team!</h4>
             <p>Get matched with 3 other players for team competitions</p>
-            <Link to="/teams/join" className="btn btn-primary">Find Teammates</Link>
+            <Link to="/teams/join" className="btn btn-primary">Join Random Team</Link>
           </div>
         )}
       </section>
