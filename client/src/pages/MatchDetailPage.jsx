@@ -118,8 +118,8 @@ export default function MatchDetailPage() {
         </div>
       </div>
 
-      {/* Actions - Show when team selection is open */}
-      {canCreateTeam && (
+      {/* Actions - Show only when team selection is open and not locked */}
+      {canCreateTeam && !isTeamLocked && (
         <div className="card">
           <div className="card-body">
             <h3 className="section-title mb-3">Create Your Team</h3>
