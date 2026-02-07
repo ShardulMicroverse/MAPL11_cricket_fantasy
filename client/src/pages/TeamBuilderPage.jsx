@@ -15,7 +15,7 @@ const TEAM_RULES = {
     'All-Rounder': { min: 1, max: 11, label: 'AR' },
     'Bowler': { min: 2, max: 11, label: 'BOWL' }
   },
-  MAX_PLAYERS_PER_TEAM: 7
+  MAX_PLAYERS_PER_TEAM: 8
 }
 
 export default function TeamBuilderPage() {
