@@ -10,10 +10,10 @@ const TEAM_RULES = {
   TOTAL_PLAYERS: 11,
   MAX_CREDITS: 100,
   ROLE_REQUIREMENTS: {
-    'Wicket-Keeper': { min: 1, max: 4, label: 'WK' },
-    'Batsman': { min: 2, max: 6, label: 'BAT' },
-    'All-Rounder': { min: 1, max: 4, label: 'AR' },
-    'Bowler': { min: 2, max: 6, label: 'BOWL' }
+    'Wicket-Keeper': { min: 1, max: 11, label: 'WK' },
+    'Batsman': { min: 2, max: 11, label: 'BAT' },
+    'All-Rounder': { min: 1, max: 11, label: 'AR' },
+    'Bowler': { min: 2, max: 11, label: 'BOWL' }
   },
   MAX_PLAYERS_PER_TEAM: 7
 }
