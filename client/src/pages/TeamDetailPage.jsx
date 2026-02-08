@@ -224,8 +224,13 @@ export default function TeamDetailPage() {
             <span className="stat-label">Wins</span>
           </div>
           <div className="team-stat-box">
-            <span className="stat-number">{team.stats?.podiums || 0}</span>
-            <span className="stat-label">Top 3</span>
+            <span className="stat-number">
+              {team.stats?.matchesPlayed > 0
+                ? `${Math.round((team.stats.wins / team.stats.matchesPlayed) * 100)}%`
+                : '0%'
+              }
+            </span>
+            <span className="stat-label">Win Rate</span>
           </div>
         </div>
       </div>
