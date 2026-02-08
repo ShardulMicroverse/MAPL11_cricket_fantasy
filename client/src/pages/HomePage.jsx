@@ -132,6 +132,17 @@ export default function HomePage() {
                 </svg>
               </Link>
             </div>
+            {myTeam.fixture?.opponentName && (
+              <div className="team-fixture-info">
+                <span className="fixture-vs">VS</span>
+                <span className="opponent-name">{myTeam.fixture.opponentName}</span>
+                {myTeam.fixture.opponent && (
+                  <span className="opponent-stats">
+                    {myTeam.fixture.opponent.stats?.wins || 0}W - {myTeam.fixture.opponent.stats?.matchesPlayed || 0}M
+                  </span>
+                )}
+              </div>
+            )}
             <div className="team-members-row">
               {myTeam.members?.map((member, i) => (
                 <div key={i} className="team-member-avatar" title={member.userId?.displayName || 'Teammate'}>
