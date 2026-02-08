@@ -212,31 +212,17 @@ export default function TeamDetailPage() {
         {/* Fixture Opponent Info */}
         {team.fixture?.opponentName && (
           <div className="fixture-opponent-card">
-            <div className="fixture-header">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="fixture-icon">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/>
-                <path d="M2 12l10 5 10-5"/>
-              </svg>
-              <span className="fixture-label">Fixture Opponent</span>
-            </div>
-            <div className="opponent-info">
-              <h4 className="opponent-name">{team.fixture.opponentName}</h4>
-              {team.fixture.opponent && (
-                <div className="opponent-quick-stats">
-                  <span>{team.fixture.opponent.stats?.wins || 0} Wins</span>
-                  <span>•</span>
-                  <span>{team.fixture.opponent.stats?.matchesPlayed || 0} Matches</span>
-                  <span>•</span>
-                  <span>
-                    {team.fixture.opponent.stats?.matchesPlayed > 0
-                      ? `${Math.round((team.fixture.opponent.stats.wins / team.fixture.opponent.stats.matchesPlayed) * 100)}%`
-                      : '0%'
-                    } Win Rate
-                  </span>
-                </div>
-              )}
-            </div>
+            <span className="fixture-vs">VS</span>
+            <span className="opponent-name">{team.fixture.opponentName}</span>
+            {team.fixture.opponent && (
+              <span className="opponent-stats">
+                {team.fixture.opponent.stats?.wins || 0}W • {team.fixture.opponent.stats?.matchesPlayed || 0}M •
+                {team.fixture.opponent.stats?.matchesPlayed > 0
+                  ? ` ${Math.round((team.fixture.opponent.stats.wins / team.fixture.opponent.stats.matchesPlayed) * 100)}%`
+                  : ' 0%'
+                }
+              </span>
+            )}
           </div>
         )}
 
