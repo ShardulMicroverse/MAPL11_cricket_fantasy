@@ -13,7 +13,7 @@ const memberPerformanceSchema = new mongoose.Schema({
   fantasyPoints: { type: Number, default: 0 },
   predictionPoints: { type: Number, default: 0 },
   totalPoints: { type: Number, default: 0 },
-  bonusPoints: { type: Number, default: 0 }  // Bonus from team rank
+  bonusPoints: { type: Number, default: 0 }  // Bonus from team fixture win
 }, { _id: false });
 
 const teamMatchPerformanceSchema = new mongoose.Schema({
@@ -38,7 +38,7 @@ const teamMatchPerformanceSchema = new mongoose.Schema({
   },
   bonusAwarded: {
     type: Number,
-    default: 0  // Bonus points awarded based on rank
+    default: 0  // Bonus points awarded based on fixture result
   },
   status: {
     type: String,
