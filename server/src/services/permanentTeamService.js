@@ -32,6 +32,17 @@ const TEAM_FIXTURES = [
 // Fixture-based bonus scoring
 const FIXTURE_WIN_BONUS = 50;  // Points awarded to winning team members
 
+// Get opponent team name from fixtures
+const getOpponentTeamName = (teamName) => {
+  const fixture = TEAM_FIXTURES.find(
+    f => f.team1 === teamName || f.team2 === teamName
+  );
+
+  if (!fixture) return null;
+
+  return fixture.team1 === teamName ? fixture.team2 : fixture.team1;
+};
+
 // Generate unique team name
 const generateTeamName = async () => {
   let attempts = 0;
@@ -226,6 +237,24 @@ const getUserTeam = async (userId) => {
   const team = await PermanentTeam.findById(user.permanentTeamId)
     .populate('members.userId', 'displayName avatar stats.totalFantasyPoints');
 
+  // Add opponent team info
+  if (team) {
+    const opponentTeamName = getOpponentTeamName(team.teamName);
+    if (opponentTeamName) {
+      const opponentTeam = await PermanentTeam.findOne({ teamName: opponentTeamName })
+        .populate('members.userId', 'displayName avatar')
+        .lean();
+
+      return {
+        ...team.toObject(),
+        fixture: {
+          opponentName: opponentTeamName,
+          opponent: opponentTeam
+        }
+      };
+    }
+  }
+
   return team;
 };
 
@@ -233,6 +262,24 @@ const getUserTeam = async (userId) => {
 const getTeamById = async (teamId) => {
   const team = await PermanentTeam.findById(teamId)
     .populate('members.userId', 'displayName avatar stats.totalFantasyPoints');
+
+  // Add opponent team info
+  if (team) {
+    const opponentTeamName = getOpponentTeamName(team.teamName);
+    if (opponentTeamName) {
+      const opponentTeam = await PermanentTeam.findOne({ teamName: opponentTeamName })
+        .populate('members.userId', 'displayName avatar')
+        .lean();
+
+      return {
+        ...team.toObject(),
+        fixture: {
+          opponentName: opponentTeamName,
+          opponent: opponentTeam
+        }
+      };
+    }
+  }
 
   return team;
 };
@@ -654,6 +701,7 @@ module.exports = {
   calculateTeamPointsForMatch,
   awardTeamBonuses,
   completeMatchTeamScoring,
+  getOpponentTeamName,
   TEAM_SIZE,
   TEAM_FIXTURES,
   FIXTURE_WIN_BONUS
