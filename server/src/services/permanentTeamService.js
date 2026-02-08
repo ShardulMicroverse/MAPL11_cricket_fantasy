@@ -18,13 +18,19 @@ const TEAM_NAME_NOUNS = [
   'Dragons', 'Legends', 'Falcons', 'Wolves', 'Hawks', 'Knights', 'Spartans', 'Gladiators'
 ];
 
-// Team bonus scoring based on rank
-const TEAM_BONUS_SCORING = {
-  rank1: 50,   // +50 bonus to each member
-  rank2: 30,   // +30 bonus to each member
-  rank3: 20,   // +20 bonus to each member
-  top5: 10    // +10 bonus to each member (ranks 4-5)
-};
+// Fixed team fixtures (Team vs Team matchups)
+const TEAM_FIXTURES = [
+  { team1: 'Team 1', team2: 'Team 14' },
+  { team1: 'Team 2', team2: 'Team 13' },
+  { team1: 'Team 3', team2: 'Team 12' },
+  { team1: 'Team 4', team2: 'Team 11' },
+  { team1: 'Team 5', team2: 'Team 10' },
+  { team1: 'Team 6', team2: 'Team 9' },
+  { team1: 'Team 7', team2: 'Team 8' }
+];
+
+// Fixture-based bonus scoring
+const FIXTURE_WIN_BONUS = 50;  // Points awarded to winning team members
 
 // Generate unique team name
 const generateTeamName = async () => {
@@ -42,14 +48,6 @@ const generateTeamName = async () => {
   return `Team ${Date.now().toString(36).toUpperCase()}`;
 };
 
-// Calculate team bonus based on rank
-const calculateTeamBonus = (rank, totalTeams) => {
-  if (rank === 1) return TEAM_BONUS_SCORING.rank1;
-  if (rank === 2) return TEAM_BONUS_SCORING.rank2;
-  if (rank === 3) return TEAM_BONUS_SCORING.rank3;
-  if (rank <= 5 && totalTeams >= 5) return TEAM_BONUS_SCORING.top5;
-  return 0;
-};
 
 // Join the permanent team formation queue
 const joinFormationQueue = async (userId) => {
@@ -439,107 +437,160 @@ const calculateTeamPointsForMatch = async (matchId) => {
   }
 };
 
-// Award team bonuses after match completion
+// Award team bonuses after match completion (fixture-based)
 const awardTeamBonuses = async (matchId) => {
   // Only process teams that haven't had bonuses awarded yet (status: 'active')
   // This prevents double-awarding if scoring runs multiple times
   const performances = await TeamMatchPerformance.find({
     matchId,
     status: 'active'
-  }).sort({ teamTotalPoints: -1 });
+  }).populate('teamId', 'teamName');
 
   if (performances.length === 0) {
     console.log('No active team performances to award bonuses for match:', matchId);
     return [];
   }
 
-  const totalTeams = performances.length;
-  console.log(`Awarding bonuses for ${totalTeams} teams in match ${matchId}`);
+  console.log(`Awarding fixture-based bonuses for ${performances.length} teams in match ${matchId}`);
 
-  for (let i = 0; i < performances.length; i++) {
-    const rank = i + 1;
-    const perf = performances[i];
+  // Create a map of team name -> performance for quick lookup
+  const teamPerformanceMap = new Map();
+  performances.forEach(perf => {
+    if (perf.teamId && perf.teamId.teamName) {
+      teamPerformanceMap.set(perf.teamId.teamName, perf);
+    }
+  });
 
-    perf.rank = rank;
-    const bonus = calculateTeamBonus(rank, totalTeams);
-    perf.bonusAwarded = bonus;
+  // Track which teams have been processed
+  const processedTeamIds = new Set();
 
-    // Award bonus to each member
-    if (bonus > 0) {
-      const memberUserIds = [];
-      for (const member of perf.memberPerformances) {
-        member.bonusPoints = bonus;
-        memberUserIds.push(member.userId);
+  // Process each fixture
+  for (const fixture of TEAM_FIXTURES) {
+    const team1Perf = teamPerformanceMap.get(fixture.team1);
+    const team2Perf = teamPerformanceMap.get(fixture.team2);
 
-        // Update user's bonus points
-        await User.findByIdAndUpdate(member.userId, {
-          $inc: {
-            'teamStats.teamBonusPointsEarned': bonus,
-            'stats.totalFantasyPoints': bonus,
-            'teamStats.teamMatchesPlayed': 1
-          }
-        });
-        console.log(`Awarded ${bonus} bonus points to user ${member.userId}`);
-      }
+    // Skip if neither team participated
+    if (!team1Perf && !team2Perf) {
+      console.log(`Fixture ${fixture.team1} vs ${fixture.team2}: Neither team participated`);
+      continue;
+    }
 
-      // Notify team members of bonus
-      broadcastTeamBonusAwarded(memberUserIds, {
-        matchId,
-        teamId: perf.teamId,
-        rank,
-        bonus
-      });
-    } else {
-      // Update match count for non-bonus teams
-      for (const member of perf.memberPerformances) {
-        await User.findByIdAndUpdate(member.userId, {
-          $inc: {
-            'teamStats.teamMatchesPlayed': 1
-          }
-        });
+    let team1Bonus = 0;
+    let team2Bonus = 0;
+
+    // Case 1: Only team1 participated (winner by default)
+    if (team1Perf && !team2Perf) {
+      team1Bonus = FIXTURE_WIN_BONUS;
+      console.log(`Fixture ${fixture.team1} vs ${fixture.team2}: ${fixture.team1} wins by default (${team1Perf.teamTotalPoints} pts)`);
+    }
+    // Case 2: Only team2 participated (winner by default)
+    else if (!team1Perf && team2Perf) {
+      team2Bonus = FIXTURE_WIN_BONUS;
+      console.log(`Fixture ${fixture.team1} vs ${fixture.team2}: ${fixture.team2} wins by default (${team2Perf.teamTotalPoints} pts)`);
+    }
+    // Case 3: Both teams participated
+    else {
+      const team1Points = team1Perf.teamTotalPoints;
+      const team2Points = team2Perf.teamTotalPoints;
+
+      if (team1Points > team2Points) {
+        // Team 1 wins
+        team1Bonus = FIXTURE_WIN_BONUS;
+        console.log(`Fixture ${fixture.team1} vs ${fixture.team2}: ${fixture.team1} wins (${team1Points} vs ${team2Points})`);
+      } else if (team2Points > team1Points) {
+        // Team 2 wins
+        team2Bonus = FIXTURE_WIN_BONUS;
+        console.log(`Fixture ${fixture.team1} vs ${fixture.team2}: ${fixture.team2} wins (${team2Points} vs ${team1Points})`);
+      } else {
+        // Tie - split the bonus
+        team1Bonus = FIXTURE_WIN_BONUS / 2;
+        team2Bonus = FIXTURE_WIN_BONUS / 2;
+        console.log(`Fixture ${fixture.team1} vs ${fixture.team2}: Tie (${team1Points} pts each) - split bonus`);
       }
     }
 
-    perf.status = 'completed';
-    await perf.save();
+    // Award bonus to team1 if they participated
+    if (team1Perf) {
+      await awardBonusToTeam(team1Perf, team1Bonus, matchId);
+      processedTeamIds.add(team1Perf.teamId._id.toString());
+    }
+
+    // Award bonus to team2 if they participated
+    if (team2Perf) {
+      await awardBonusToTeam(team2Perf, team2Bonus, matchId);
+      processedTeamIds.add(team2Perf.teamId._id.toString());
+    }
   }
 
-  // Update team overall stats
+  // Process teams not in fixtures (they get 0 bonus)
   for (const perf of performances) {
-    const isWin = perf.rank === 1;
-    const isPodium = perf.rank <= 3;
-    const isTopFive = perf.rank <= 5;
+    const teamIdStr = perf.teamId._id.toString();
+    if (!processedTeamIds.has(teamIdStr)) {
+      console.log(`Team ${perf.teamId.teamName} not in fixtures - awarding 0 bonus`);
+      await awardBonusToTeam(perf, 0, matchId);
+    }
+  }
 
-    const team = await PermanentTeam.findById(perf.teamId);
+  // Update team overall stats (fixture-based)
+  for (const perf of performances) {
+    const team = await PermanentTeam.findById(perf.teamId._id);
     if (!team) {
       console.error('Team not found for performance:', perf._id);
       continue;
     }
 
-    const currentMatchesPlayed = team.stats.matchesPlayed || 0;
-    const currentAvgRank = team.stats.averageRank || 0;
+    const isWin = perf.bonusAwarded === FIXTURE_WIN_BONUS;
 
-    // Calculate new average rank
-    const newAvgRank = currentMatchesPlayed > 0
-      ? ((currentAvgRank * currentMatchesPlayed) + perf.rank) / (currentMatchesPlayed + 1)
-      : perf.rank;
-
-    await PermanentTeam.findByIdAndUpdate(perf.teamId, {
+    await PermanentTeam.findByIdAndUpdate(perf.teamId._id, {
       $inc: {
         'stats.totalPoints': perf.teamTotalPoints + (perf.bonusAwarded * 4),
         'stats.matchesPlayed': 1,
-        'stats.wins': isWin ? 1 : 0,
-        'stats.podiums': isPodium ? 1 : 0,
-        'stats.topFives': isTopFive ? 1 : 0
-      },
-      $min: { 'stats.bestRank': perf.rank },
-      $set: { 'stats.averageRank': Math.round(newAvgRank * 10) / 10 }
+        'stats.wins': isWin ? 1 : 0
+      }
     });
 
-    console.log(`Updated team ${team.teamName} stats: totalPoints +${perf.teamTotalPoints + (perf.bonusAwarded * 4)}, rank ${perf.rank}`);
+    console.log(`Updated team ${team.teamName} stats: totalPoints +${perf.teamTotalPoints + (perf.bonusAwarded * 4)}, fixtureWin: ${isWin}`);
   }
 
   return performances;
+};
+
+// Helper function to award bonus to a team
+const awardBonusToTeam = async (performance, bonus, matchId) => {
+  performance.bonusAwarded = bonus;
+  performance.rank = null; // No longer using rank
+
+  const memberUserIds = [];
+
+  // Award bonus to each member
+  for (const member of performance.memberPerformances) {
+    member.bonusPoints = bonus;
+    memberUserIds.push(member.userId);
+
+    // Update user's bonus points
+    await User.findByIdAndUpdate(member.userId, {
+      $inc: {
+        'teamStats.teamBonusPointsEarned': bonus,
+        'stats.totalFantasyPoints': bonus,
+        'teamStats.teamMatchesPlayed': 1
+      }
+    });
+    console.log(`  Awarded ${bonus} bonus points to user ${member.userId}`);
+  }
+
+  // Notify team members of bonus (if any)
+  if (bonus > 0) {
+    broadcastTeamBonusAwarded(memberUserIds, {
+      matchId,
+      teamId: performance.teamId._id,
+      bonus,
+      fixtureWin: bonus === FIXTURE_WIN_BONUS,
+      fixtureTie: bonus === FIXTURE_WIN_BONUS / 2
+    });
+  }
+
+  performance.status = 'completed';
+  await performance.save();
 };
 
 // Auto-register all permanent teams that have members with fantasy teams for this match
@@ -604,5 +655,6 @@ module.exports = {
   awardTeamBonuses,
   completeMatchTeamScoring,
   TEAM_SIZE,
-  TEAM_BONUS_SCORING
+  TEAM_FIXTURES,
+  FIXTURE_WIN_BONUS
 };
