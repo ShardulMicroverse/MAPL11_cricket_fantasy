@@ -153,8 +153,13 @@ export default function HomePage() {
                 <span className="team-stat-label">Wins</span>
               </div>
               <div className="team-stat">
-                <span className="team-stat-value">{myTeam.stats?.podiums || 0}</span>
-                <span className="team-stat-label">Top 3</span>
+                <span className="team-stat-value">
+                  {myTeam.stats?.matchesPlayed > 0
+                    ? `${Math.round((myTeam.stats.wins / myTeam.stats.matchesPlayed) * 100)}%`
+                    : '0%'
+                  }
+                </span>
+                <span className="team-stat-label">Win Rate</span>
               </div>
             </div>
           </div>
