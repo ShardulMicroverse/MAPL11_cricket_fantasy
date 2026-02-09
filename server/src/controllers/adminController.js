@@ -15,42 +15,28 @@ const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 
 /**
- * Helper function to update user best ranks after points are calculated
+ * Helper function to update user best ranks based on overall leaderboard position.
+ * Called after match scoring updates user stats.totalFantasyPoints.
  */
-const updateUserBestRanks = async (matchId) => {
+const updateUserBestRanks = async () => {
   try {
-    // Get all fantasy teams for this match with points, sorted by total points
-    const fantasyTeams = await FantasyTeam.find({ matchId })
-      .populate('userId', '_id stats')
+    // Get all active users sorted by totalFantasyPoints (same as overall leaderboard)
+    const users = await User.find({ isActive: true })
+      .select('_id stats.totalFantasyPoints stats.bestRank')
+      .sort({ 'stats.totalFantasyPoints': -1 })
       .lean();
 
-    if (fantasyTeams.length === 0) return;
+    if (users.length === 0) return;
 
-    // Get predictions and calculate total points for ranking
-    const predictions = await Prediction.find({ matchId }).lean();
-    const predictionMap = predictions.reduce((acc, p) => {
-      acc[p.userId.toString()] = p.totalPredictionPoints || 0;
-      return acc;
-    }, {});
-
-    // Calculate total points and rank
-    const rankedUsers = fantasyTeams.map(team => ({
-      userId: team.userId._id,
-      currentBestRank: team.userId.stats?.bestRank,
-      totalPoints: (team.fantasyPoints || 0) + (predictionMap[team.userId._id.toString()] || 0)
-    }));
-
-    // Sort by total points descending
-    rankedUsers.sort((a, b) => b.totalPoints - a.totalPoints);
-
-    // Assign ranks and update users
-    for (let i = 0; i < rankedUsers.length; i++) {
+    // Assign overall leaderboard ranks and update bestRank where improved
+    for (let i = 0; i < users.length; i++) {
       const rank = i + 1;
-      const user = rankedUsers[i];
+      const user = users[i];
+      const currentBest = user.stats?.bestRank;
 
-      // Update best rank if this rank is better (lower) or if no best rank exists
-      if (!user.currentBestRank || rank < user.currentBestRank) {
-        await User.findByIdAndUpdate(user.userId, {
+      // Only update if this rank is better (lower) or no bestRank exists
+      if (!currentBest || rank < currentBest) {
+        await User.findByIdAndUpdate(user._id, {
           'stats.bestRank': rank
         });
       }
@@ -1031,7 +1017,7 @@ const calculateFantasyPoints = async (req, res, next) => {
     }
 
     // Calculate and update best ranks for this match
-    await updateUserBestRanks(matchId);
+    await updateUserBestRanks();
 
     // Calculate team points and award bonuses for permanent teams
     try {
@@ -1711,7 +1697,7 @@ const calculatePointsFromScorecard = async (req, res, next) => {
     }
 
     // Calculate and update best ranks for this match
-    await updateUserBestRanks(matchId);
+    await updateUserBestRanks();
 
     // Calculate team points and award bonuses for permanent teams
     try {
@@ -1894,26 +1880,10 @@ const recalculateAllUserStats = async (req, res, next) => {
           }
         }
 
-        // Calculate best rank across all completed matches
-        let bestRank = null;
-        for (const team of userTeams) {
-          if (team.matchId && team.matchId.status === 'completed' && team.fantasyPoints > 0) {
-            // Get rank for this match
-            const higherRanked = await FantasyTeam.countDocuments({
-              matchId: team.matchId._id,
-              fantasyPoints: { $gt: team.fantasyPoints }
-            });
-            const rank = higherRanked + 1;
-            if (bestRank === null || rank < bestRank) {
-              bestRank = rank;
-            }
-          }
-        }
-
         await User.findByIdAndUpdate(user._id, {
           'stats.totalFantasyPoints': totalFantasyPoints + totalPredictionPoints + totalTeamBonusPoints,
           'stats.matchesPlayed': matchesPlayed,
-          'stats.bestRank': bestRank,
+          'stats.bestRank': null, // Reset - will be recalculated below
           'teamStats.teamBonusPointsEarned': totalTeamBonusPoints,
           'teamStats.teamMatchesPlayed': teamMatchesPlayed
         });
@@ -1923,6 +1893,9 @@ const recalculateAllUserStats = async (req, res, next) => {
         results.errors.push({ userId: user._id, error: err.message });
       }
     }
+
+    // Recalculate best ranks based on overall leaderboard positions
+    await updateUserBestRanks();
 
     res.json({
       success: true,
