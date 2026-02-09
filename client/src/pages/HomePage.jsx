@@ -108,7 +108,7 @@ export default function HomePage() {
             </svg>
           </div>
           <div className="stat-details">
-            <span className="stat-value">{user?.stats?.totalWins || 0}</span>
+            <span className="stat-value">{myTeam?.stats?.wins || 0}</span>
             <span className="stat-label">Wins</span>
           </div>
         </div>
