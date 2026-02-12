@@ -109,7 +109,7 @@ export default function PredictionsPage() {
           {/* Powerplay Score */}
           <div className="prediction-item">
             <label className="form-label">
-              Total Powerplay Runs (first 6 overs each innings)
+              Total Powerplay Runs (India powerplay runs)
               <span className="points-badge">+35 / -10</span>
             </label>
             <input
