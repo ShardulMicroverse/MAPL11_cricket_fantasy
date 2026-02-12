@@ -1503,13 +1503,11 @@ const calculatePointsFromScorecard = async (req, res, next) => {
       const populatedStats = await PlayerMatchStats.find({ matchId })
         .populate('playerId', 'name');
 
-      let totalScore = 0, mostSixes = null, mostFours = null, mostWickets = null;
-      let powerplayScore = 0, fiftiesCount = 0;
+      let mostSixes = null, mostFours = null, mostWickets = null;
+      let fiftiesCount = 0;
       let maxSixes = 0, maxFours = 0, maxWickets = 0;
 
       populatedStats.forEach(s => {
-        totalScore += s.batting.runs || 0;
-
         if (s.batting.runs >= 50) fiftiesCount++;
 
         if ((s.batting.sixes || 0) > maxSixes) {
@@ -1526,8 +1524,17 @@ const calculatePointsFromScorecard = async (req, res, next) => {
         }
       });
 
-      // Estimate powerplay score as ~30% of total (can be updated manually)
-      powerplayScore = Math.round(totalScore * 0.3);
+      // Calculate totalScore from actual match result (includes extras)
+      // Format: "182/5 (20)" — parse runs before the "/"
+      const parseScore = (scoreStr) => {
+        if (!scoreStr) return 0;
+        const match = scoreStr.match(/^(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+      const totalScore = parseScore(match.result?.team1Score) + parseScore(match.result?.team2Score);
+
+      // Estimate powerplay score as ~30% of total (can be updated via admin manually)
+      const powerplayScore = Math.round(totalScore * 0.3);
 
       match.statsSnapshot = {
         totalScore,
