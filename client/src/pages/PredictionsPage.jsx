@@ -94,7 +94,7 @@ export default function PredictionsPage() {
           {/* Total Score */}
           <div className="prediction-item">
             <label className="form-label">
-              Total Match Runs (1st + second innings)
+              Total Match Runs (first + second innings)
               <span className="points-badge">+50 / -10</span>
             </label>
             <input
