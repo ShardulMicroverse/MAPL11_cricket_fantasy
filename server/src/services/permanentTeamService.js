@@ -20,13 +20,13 @@ const TEAM_NAME_NOUNS = [
 
 // Fixed team fixtures (Team vs Team matchups)
 const TEAM_FIXTURES = [
-  { team1: 'Team 1', team2: 'Team 13' },
-  { team1: 'Team 14', team2: 'Team 12' },
-  { team1: 'Team 2', team2: 'Team 11' },
-  { team1: 'Team 3', team2: 'Team 10' },
-  { team1: 'Team 4', team2: 'Team 9' },
-  { team1: 'Team 5', team2: 'Team 8' },
-  { team1: 'Team 6', team2: 'Team 7' }
+  { team1: 'Team 1', team2: 'Team 12' },
+  { team1: 'Team 13', team2: 'Team 11' },
+  { team1: 'Team 14', team2: 'Team 10' },
+  { team1: 'Team 2', team2: 'Team 9' },
+  { team1: 'Team 3', team2: 'Team 8' },
+  { team1: 'Team 4', team2: 'Team 7' },
+  { team1: 'Team 5', team2: 'Team 6' }
 ];
 
 // Fixture-based bonus scoring
