@@ -20,7 +20,8 @@ const allowedOrigins = [
   config.clientUrl,
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://mapl11.vercel.app'
+  'https://mapl11.vercel.app',
+  'https://mapl-11-cricket-fantasy.vercel.app'
 ].filter(Boolean);
 
 app.use(cors({
