@@ -103,7 +103,7 @@ export default function PredictionsPage() {
           <div className="prediction-item">
             <label className="form-label">
               Total Match Runs (first + second innings)
-              <span className="points-badge">+50 / -10</span>
+              <span className="points-badge">+150 / -10</span>
             </label>
             <input
               type="number"
@@ -229,7 +229,7 @@ export default function PredictionsPage() {
           <div className="prediction-item">
             <label className="form-label">
               Score by Abhishek Sharma
-              <span className="points-badge">+50 / -10</span>
+              <span className="points-badge">+150 / ±10 buffer / -10</span>
             </label>
             <input
               type="number"
@@ -244,7 +244,7 @@ export default function PredictionsPage() {
           <div className="prediction-item">
             <label className="form-label">
               Number of catches taken by Indian team
-              <span className="points-badge">+50 / -10</span>
+              <span className="points-badge">+150 / -10</span>
             </label>
             <input
               type="number"
@@ -259,7 +259,7 @@ export default function PredictionsPage() {
           <div className="prediction-item">
             <label className="form-label">
               Will the score be above 230 in Indian innings?
-              <span className="points-badge">+50 / -10</span>
+              <span className="points-badge">+150 / -10</span>
             </label>
             <select
               className="form-input"
@@ -276,7 +276,7 @@ export default function PredictionsPage() {
           <div className="prediction-item">
             <label className="form-label">
               Who will get Man of the Match?
-              <span className="points-badge">+50 / -10</span>
+              <span className="points-badge">+150 / -10</span>
             </label>
             <select
               className="form-input"
@@ -299,7 +299,7 @@ export default function PredictionsPage() {
           <div className="prediction-item">
             <label className="form-label">
               Will any team be all out?
-              <span className="points-badge">+50 / -10</span>
+              <span className="points-badge">+150 / -10</span>
             </label>
             <select
               className="form-input"

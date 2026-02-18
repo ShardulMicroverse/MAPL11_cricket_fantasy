@@ -196,11 +196,11 @@ const PREDICTION_SCORING = {
   mostWickets: { correct: 40, wrong: -10 },
   powerplayScore: { correct: 35, close: 15, closeRange: 10, wrong: -10 },
   fiftiesCount: { correct: 30, wrong: -10 },
-  abhishekSharmaScore: { correct: 50, wrong: -10 },
-  indianTeamCatches: { correct: 50, wrong: -10 },
-  indiaScoreAbove230: { correct: 50, wrong: -10 },
-  manOfMatch: { correct: 50, wrong: -10 },
-  anyTeamAllOut: { correct: 50, wrong: -10 }
+  abhishekSharmaScore: { correct: 150, close: 75, closeRange: 10, wrong: -10 },
+  indianTeamCatches: { correct: 150, wrong: -10 },
+  indiaScoreAbove230: { correct: 150, wrong: -10 },
+  manOfMatch: { correct: 150, wrong: -10 },
+  anyTeamAllOut: { correct: 150, wrong: -10 }
 };
 
 // Helper: check if user actually answered a prediction field
@@ -284,10 +284,13 @@ const calculatePredictionPoints = (prediction, actualStats) => {
     totalPoints += results.fiftiesCount.points;
   }
 
-  // Abhishek Sharma Score (optional)
+  // Abhishek Sharma Score (optional, with ±10 buffer)
   if (hasAnswer(prediction.abhishekSharmaScore) && hasActual(actualStats.abhishekSharmaScore)) {
-    if (Number(prediction.abhishekSharmaScore.answer) === Number(actualStats.abhishekSharmaScore)) {
+    const abhishekDiff = Math.abs(Number(prediction.abhishekSharmaScore.answer) - Number(actualStats.abhishekSharmaScore));
+    if (abhishekDiff === 0) {
       results.abhishekSharmaScore = { points: PREDICTION_SCORING.abhishekSharmaScore.correct, isCorrect: true };
+    } else if (abhishekDiff <= PREDICTION_SCORING.abhishekSharmaScore.closeRange) {
+      results.abhishekSharmaScore = { points: PREDICTION_SCORING.abhishekSharmaScore.close, isCorrect: false, isClose: true };
     } else {
       results.abhishekSharmaScore = { points: PREDICTION_SCORING.abhishekSharmaScore.wrong, isCorrect: false };
     }

@@ -70,23 +70,24 @@ const PREDICTION_RULES = {
     wrong: { points: -10, description: 'Wrong prediction' }
   },
   abhishekSharmaScore: {
-    correct: { points: 50, description: 'Exact score by Abhishek Sharma' },
+    correct: { points: 150, description: 'Exact score by Abhishek Sharma' },
+    close: { points: 75, description: 'Within 10 runs', range: 10 },
     wrong: { points: -10, description: 'Wrong prediction' }
   },
   indianTeamCatches: {
-    correct: { points: 50, description: 'Exact number of catches by Indian team' },
+    correct: { points: 150, description: 'Exact number of catches by Indian team' },
     wrong: { points: -10, description: 'Wrong prediction' }
   },
   indiaScoreAbove230: {
-    correct: { points: 50, description: 'Correct Yes/No on India scoring above 230' },
+    correct: { points: 150, description: 'Correct Yes/No on India scoring above 230' },
     wrong: { points: -10, description: 'Wrong prediction' }
   },
   manOfMatch: {
-    correct: { points: 50, description: 'Correct Man of the Match prediction' },
+    correct: { points: 150, description: 'Correct Man of the Match prediction' },
     wrong: { points: -10, description: 'Wrong prediction' }
   },
   anyTeamAllOut: {
-    correct: { points: 50, description: 'Correct Yes/No on any team being all out' },
+    correct: { points: 150, description: 'Correct Yes/No on any team being all out' },
     wrong: { points: -10, description: 'Wrong prediction' }
   }
 };
