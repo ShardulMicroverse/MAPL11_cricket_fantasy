@@ -18,7 +18,12 @@ export default function PredictionsPage() {
     mostFours: { answer: '', answerName: '' },
     mostWickets: { answer: '', answerName: '' },
     powerplayScore: { answer: '' },
-    fiftiesCount: { answer: '' }
+    fiftiesCount: { answer: '' },
+    abhishekSharmaScore: { answer: '' },
+    indianTeamCatches: { answer: '' },
+    indiaScoreAbove230: { answer: '' },
+    manOfMatch: { answer: '', answerName: '' },
+    anyTeamAllOut: { answer: '' }
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -55,13 +60,12 @@ export default function PredictionsPage() {
   }
 
   const handleSubmit = async () => {
-    // Validate all fields
-    const fields = ['totalScore', 'mostSixes', 'mostFours', 'mostWickets', 'powerplayScore', 'fiftiesCount']
-    for (const field of fields) {
-      if (predictions[field].answer === '' || predictions[field].answer === null) {
-        showError(`Please complete all predictions`)
-        return
-      }
+    // Validate at least one field is answered
+    const allFields = ['totalScore', 'mostSixes', 'mostFours', 'mostWickets', 'powerplayScore', 'fiftiesCount', 'abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut']
+    const hasAtLeastOne = allFields.some(f => predictions[f]?.answer !== '' && predictions[f]?.answer !== null && predictions[f]?.answer !== undefined)
+    if (!hasAtLeastOne) {
+      showError('Please answer at least one prediction question')
+      return
     }
 
     setSaving(true)
@@ -87,6 +91,10 @@ export default function PredictionsPage() {
       <h1 className="mb-md">Match Predictions</h1>
       <p className="text-gray text-sm mb-md">
         {match.team1.name} vs {match.team2.name}
+      </p>
+
+      <p className="text-gray text-sm mb-md" style={{ fontStyle: 'italic' }}>
+        All questions are optional. Answer as many as you like.
       </p>
 
       <div className="card mb-md">
@@ -205,6 +213,102 @@ export default function PredictionsPage() {
                   {player.name} ({player.team})
                 </option>
               ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Bonus Prediction Questions */}
+      <div className="card mb-md">
+        <div className="card-body">
+          <h3 style={{ marginBottom: 'var(--spacing-md)', fontSize: '1rem', color: 'var(--text-primary)' }}>
+            Bonus Questions
+          </h3>
+
+          {/* Abhishek Sharma Score */}
+          <div className="prediction-item">
+            <label className="form-label">
+              Score by Abhishek Sharma
+              <span className="points-badge">+50 / -10</span>
+            </label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="e.g., 45 (leave blank to skip)"
+              value={predictions.abhishekSharmaScore.answer}
+              onChange={(e) => updatePrediction('abhishekSharmaScore', e.target.value === '' ? '' : parseInt(e.target.value))}
+            />
+          </div>
+
+          {/* Indian Team Catches */}
+          <div className="prediction-item">
+            <label className="form-label">
+              Number of catches taken by Indian team
+              <span className="points-badge">+50 / -10</span>
+            </label>
+            <input
+              type="number"
+              className="form-input"
+              placeholder="e.g., 5 (leave blank to skip)"
+              value={predictions.indianTeamCatches.answer}
+              onChange={(e) => updatePrediction('indianTeamCatches', e.target.value === '' ? '' : parseInt(e.target.value))}
+            />
+          </div>
+
+          {/* India Score Above 230 */}
+          <div className="prediction-item">
+            <label className="form-label">
+              Will the score be above 230 in Indian innings?
+              <span className="points-badge">+50 / -10</span>
+            </label>
+            <select
+              className="form-input"
+              value={predictions.indiaScoreAbove230.answer}
+              onChange={(e) => updatePrediction('indiaScoreAbove230', e.target.value)}
+            >
+              <option value="">Skip this question</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+
+          {/* Man of the Match */}
+          <div className="prediction-item">
+            <label className="form-label">
+              Who will get Man of the Match?
+              <span className="points-badge">+50 / -10</span>
+            </label>
+            <select
+              className="form-input"
+              value={predictions.manOfMatch.answer}
+              onChange={(e) => {
+                const player = allPlayers.find(p => p._id === e.target.value)
+                updatePrediction('manOfMatch', e.target.value, player?.name || '')
+              }}
+            >
+              <option value="">Skip this question</option>
+              {allPlayers.map(player => (
+                <option key={player._id} value={player._id}>
+                  {player.name} ({player.team})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Any Team All Out */}
+          <div className="prediction-item">
+            <label className="form-label">
+              Will any team be all out?
+              <span className="points-badge">+50 / -10</span>
+            </label>
+            <select
+              className="form-input"
+              value={predictions.anyTeamAllOut.answer}
+              onChange={(e) => updatePrediction('anyTeamAllOut', e.target.value)}
+            >
+              <option value="">Skip this question</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
             </select>
           </div>
         </div>

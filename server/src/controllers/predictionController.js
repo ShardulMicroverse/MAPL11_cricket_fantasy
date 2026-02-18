@@ -43,32 +43,52 @@ const submitPredictions = async (req, res, next) => {
       return next(new ApiError(400, 'Prediction deadline has passed'));
     }
 
-    // Validate predictions format
-    const requiredFields = ['totalScore', 'mostSixes', 'mostFours', 'mostWickets', 'powerplayScore', 'fiftiesCount'];
-    for (const field of requiredFields) {
-      if (predictions[field] === undefined || predictions[field].answer === undefined) {
-        return next(new ApiError(400, `Missing prediction for ${field}`));
-      }
+    // Validate that at least one prediction field is provided
+    const allFields = [
+      'totalScore', 'mostSixes', 'mostFours', 'mostWickets', 'powerplayScore', 'fiftiesCount',
+      'abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut'
+    ];
+    const hasAtLeastOne = allFields.some(f => predictions[f]?.answer !== undefined && predictions[f]?.answer !== null && predictions[f]?.answer !== '');
+    if (!hasAtLeastOne) {
+      return next(new ApiError(400, 'Please answer at least one prediction question'));
     }
 
-    // Build predictions object
-    const predictionData = {
-      totalScore: { answer: predictions.totalScore.answer },
-      mostSixes: {
-        answer: predictions.mostSixes.answer,
-        answerName: predictions.mostSixes.answerName
-      },
-      mostFours: {
-        answer: predictions.mostFours.answer,
-        answerName: predictions.mostFours.answerName
-      },
-      mostWickets: {
-        answer: predictions.mostWickets.answer,
-        answerName: predictions.mostWickets.answerName
-      },
-      powerplayScore: { answer: predictions.powerplayScore.answer },
-      fiftiesCount: { answer: predictions.fiftiesCount.answer }
-    };
+    // Build predictions object — only include answered fields
+    const predictionData = {};
+
+    if (predictions.totalScore?.answer !== undefined && predictions.totalScore?.answer !== '') {
+      predictionData.totalScore = { answer: predictions.totalScore.answer };
+    }
+    if (predictions.mostSixes?.answer !== undefined && predictions.mostSixes?.answer !== '') {
+      predictionData.mostSixes = { answer: predictions.mostSixes.answer, answerName: predictions.mostSixes.answerName || '' };
+    }
+    if (predictions.mostFours?.answer !== undefined && predictions.mostFours?.answer !== '') {
+      predictionData.mostFours = { answer: predictions.mostFours.answer, answerName: predictions.mostFours.answerName || '' };
+    }
+    if (predictions.mostWickets?.answer !== undefined && predictions.mostWickets?.answer !== '') {
+      predictionData.mostWickets = { answer: predictions.mostWickets.answer, answerName: predictions.mostWickets.answerName || '' };
+    }
+    if (predictions.powerplayScore?.answer !== undefined && predictions.powerplayScore?.answer !== '') {
+      predictionData.powerplayScore = { answer: predictions.powerplayScore.answer };
+    }
+    if (predictions.fiftiesCount?.answer !== undefined && predictions.fiftiesCount?.answer !== '') {
+      predictionData.fiftiesCount = { answer: predictions.fiftiesCount.answer };
+    }
+    if (predictions.abhishekSharmaScore?.answer !== undefined && predictions.abhishekSharmaScore?.answer !== '') {
+      predictionData.abhishekSharmaScore = { answer: predictions.abhishekSharmaScore.answer };
+    }
+    if (predictions.indianTeamCatches?.answer !== undefined && predictions.indianTeamCatches?.answer !== '') {
+      predictionData.indianTeamCatches = { answer: predictions.indianTeamCatches.answer };
+    }
+    if (predictions.indiaScoreAbove230?.answer !== undefined && predictions.indiaScoreAbove230?.answer !== '') {
+      predictionData.indiaScoreAbove230 = { answer: predictions.indiaScoreAbove230.answer };
+    }
+    if (predictions.manOfMatch?.answer !== undefined && predictions.manOfMatch?.answer !== '') {
+      predictionData.manOfMatch = { answer: predictions.manOfMatch.answer, answerName: predictions.manOfMatch.answerName || '' };
+    }
+    if (predictions.anyTeamAllOut?.answer !== undefined && predictions.anyTeamAllOut?.answer !== '') {
+      predictionData.anyTeamAllOut = { answer: predictions.anyTeamAllOut.answer };
+    }
 
     // Check for existing prediction
     let prediction = await Prediction.findOne({

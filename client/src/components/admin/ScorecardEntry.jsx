@@ -17,6 +17,13 @@ export default function ScorecardEntry({ matchId, onClose }) {
     powerplayScore: 0,
     fiftiesCount: 0
   })
+  const [predictionAnswers, setPredictionAnswers] = useState({
+    abhishekSharmaScore: '',
+    indianTeamCatches: '',
+    indiaScoreAbove230: '',
+    manOfMatch: { playerId: '', playerName: '' },
+    anyTeamAllOut: ''
+  })
 
   useEffect(() => {
     fetchMatchPlayers()
@@ -38,6 +45,14 @@ export default function ScorecardEntry({ matchId, onClose }) {
           totalScore: data.match.statsSnapshot.totalScore || 0,
           powerplayScore: data.match.statsSnapshot.powerplayScore || 0,
           fiftiesCount: data.match.statsSnapshot.fiftiesCount || 0
+        })
+        const snap = data.match.statsSnapshot
+        setPredictionAnswers({
+          abhishekSharmaScore: snap.abhishekSharmaScore !== undefined && snap.abhishekSharmaScore !== null ? snap.abhishekSharmaScore : '',
+          indianTeamCatches: snap.indianTeamCatches !== undefined && snap.indianTeamCatches !== null ? snap.indianTeamCatches : '',
+          indiaScoreAbove230: snap.indiaScoreAbove230 || '',
+          manOfMatch: snap.manOfMatch ? { playerId: snap.manOfMatch.playerId || '', playerName: snap.manOfMatch.playerName || '' } : { playerId: '', playerName: '' },
+          anyTeamAllOut: snap.anyTeamAllOut || ''
         })
       }
 
@@ -173,7 +188,12 @@ export default function ScorecardEntry({ matchId, onClose }) {
         fiftiesCount,
         mostSixes,
         mostFours,
-        mostWickets
+        mostWickets,
+        abhishekSharmaScore: predictionAnswers.abhishekSharmaScore !== '' ? Number(predictionAnswers.abhishekSharmaScore) : undefined,
+        indianTeamCatches: predictionAnswers.indianTeamCatches !== '' ? Number(predictionAnswers.indianTeamCatches) : undefined,
+        indiaScoreAbove230: predictionAnswers.indiaScoreAbove230 || undefined,
+        manOfMatch: predictionAnswers.manOfMatch.playerId ? predictionAnswers.manOfMatch : undefined,
+        anyTeamAllOut: predictionAnswers.anyTeamAllOut || undefined
       })
 
       success('Match stats updated')
@@ -420,6 +440,76 @@ export default function ScorecardEntry({ matchId, onClose }) {
               value={matchStats.powerplayScore}
               onChange={(e) => setMatchStats(prev => ({ ...prev, powerplayScore: parseInt(e.target.value) || 0 }))}
             />
+          </label>
+        </div>
+
+        <h3 style={{ marginTop: '1rem' }}>Bonus Question Answers (Correct Values)</h3>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+          Fill in the correct answers before calculating fantasy points. Leave blank if not applicable.
+        </p>
+        <div className="match-stats-row" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
+          <label>
+            <span>Abhishek Sharma Score</span>
+            <input
+              type="number"
+              min="0"
+              placeholder="Actual runs"
+              value={predictionAnswers.abhishekSharmaScore}
+              onChange={(e) => setPredictionAnswers(prev => ({ ...prev, abhishekSharmaScore: e.target.value }))}
+            />
+          </label>
+          <label>
+            <span>Indian Team Catches</span>
+            <input
+              type="number"
+              min="0"
+              placeholder="Total catches"
+              value={predictionAnswers.indianTeamCatches}
+              onChange={(e) => setPredictionAnswers(prev => ({ ...prev, indianTeamCatches: e.target.value }))}
+            />
+          </label>
+          <label>
+            <span>India Score Above 230?</span>
+            <select
+              value={predictionAnswers.indiaScoreAbove230}
+              onChange={(e) => setPredictionAnswers(prev => ({ ...prev, indiaScoreAbove230: e.target.value }))}
+            >
+              <option value="">Not set</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+          <label>
+            <span>Any Team All Out?</span>
+            <select
+              value={predictionAnswers.anyTeamAllOut}
+              onChange={(e) => setPredictionAnswers(prev => ({ ...prev, anyTeamAllOut: e.target.value }))}
+            >
+              <option value="">Not set</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </label>
+        </div>
+        <div className="match-stats-row" style={{ marginTop: '0.75rem' }}>
+          <label style={{ flex: '1 1 100%' }}>
+            <span>Man of the Match</span>
+            <select
+              value={predictionAnswers.manOfMatch.playerId}
+              onChange={(e) => {
+                const allPlayers = [...team1Players, ...team2Players]
+                const player = allPlayers.find(p => p._id === e.target.value)
+                setPredictionAnswers(prev => ({
+                  ...prev,
+                  manOfMatch: { playerId: e.target.value, playerName: player?.name || '' }
+                }))
+              }}
+            >
+              <option value="">Not set</option>
+              {[...team1Players, ...team2Players].map(p => (
+                <option key={p._id} value={p._id}>{p.name}</option>
+              ))}
+            </select>
           </label>
         </div>
       </div>

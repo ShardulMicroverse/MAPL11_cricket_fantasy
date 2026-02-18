@@ -68,7 +68,15 @@ const matchSchema = new mongoose.Schema({
       count: { type: Number }
     },
     powerplayScore: { type: Number },
-    fiftiesCount: { type: Number }
+    fiftiesCount: { type: Number },
+    abhishekSharmaScore: { type: Number },
+    indianTeamCatches: { type: Number },
+    indiaScoreAbove230: { type: String },
+    manOfMatch: {
+      playerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Player' },
+      playerName: { type: String }
+    },
+    anyTeamAllOut: { type: String }
   },
   isTeamSelectionOpen: {
     type: Boolean,

@@ -982,6 +982,47 @@ const calculateFantasyPoints = async (req, res, next) => {
               actualValue: match.statsSnapshot.fiftiesCount
             };
           }
+          if (predResults.abhishekSharmaScore) {
+            updatedPredictions.abhishekSharmaScore = {
+              ...updatedPredictions.abhishekSharmaScore,
+              pointsEarned: predResults.abhishekSharmaScore.points,
+              isCorrect: predResults.abhishekSharmaScore.isCorrect,
+              actualValue: match.statsSnapshot.abhishekSharmaScore
+            };
+          }
+          if (predResults.indianTeamCatches) {
+            updatedPredictions.indianTeamCatches = {
+              ...updatedPredictions.indianTeamCatches,
+              pointsEarned: predResults.indianTeamCatches.points,
+              isCorrect: predResults.indianTeamCatches.isCorrect,
+              actualValue: match.statsSnapshot.indianTeamCatches
+            };
+          }
+          if (predResults.indiaScoreAbove230) {
+            updatedPredictions.indiaScoreAbove230 = {
+              ...updatedPredictions.indiaScoreAbove230,
+              pointsEarned: predResults.indiaScoreAbove230.points,
+              isCorrect: predResults.indiaScoreAbove230.isCorrect,
+              actualValue: match.statsSnapshot.indiaScoreAbove230
+            };
+          }
+          if (predResults.manOfMatch) {
+            updatedPredictions.manOfMatch = {
+              ...updatedPredictions.manOfMatch,
+              pointsEarned: predResults.manOfMatch.points,
+              isCorrect: predResults.manOfMatch.isCorrect,
+              actualValue: match.statsSnapshot.manOfMatch?.playerId,
+              actualPlayerName: match.statsSnapshot.manOfMatch?.playerName
+            };
+          }
+          if (predResults.anyTeamAllOut) {
+            updatedPredictions.anyTeamAllOut = {
+              ...updatedPredictions.anyTeamAllOut,
+              pointsEarned: predResults.anyTeamAllOut.points,
+              isCorrect: predResults.anyTeamAllOut.isCorrect,
+              actualValue: match.statsSnapshot.anyTeamAllOut
+            };
+          }
 
           await Prediction.findByIdAndUpdate(prediction._id, {
             predictions: updatedPredictions,
@@ -1658,6 +1699,47 @@ const calculatePointsFromScorecard = async (req, res, next) => {
               actualValue: match.statsSnapshot.fiftiesCount
             };
           }
+          if (predResults.abhishekSharmaScore) {
+            updatedPredictions.abhishekSharmaScore = {
+              ...updatedPredictions.abhishekSharmaScore,
+              pointsEarned: predResults.abhishekSharmaScore.points,
+              isCorrect: predResults.abhishekSharmaScore.isCorrect,
+              actualValue: match.statsSnapshot.abhishekSharmaScore
+            };
+          }
+          if (predResults.indianTeamCatches) {
+            updatedPredictions.indianTeamCatches = {
+              ...updatedPredictions.indianTeamCatches,
+              pointsEarned: predResults.indianTeamCatches.points,
+              isCorrect: predResults.indianTeamCatches.isCorrect,
+              actualValue: match.statsSnapshot.indianTeamCatches
+            };
+          }
+          if (predResults.indiaScoreAbove230) {
+            updatedPredictions.indiaScoreAbove230 = {
+              ...updatedPredictions.indiaScoreAbove230,
+              pointsEarned: predResults.indiaScoreAbove230.points,
+              isCorrect: predResults.indiaScoreAbove230.isCorrect,
+              actualValue: match.statsSnapshot.indiaScoreAbove230
+            };
+          }
+          if (predResults.manOfMatch) {
+            updatedPredictions.manOfMatch = {
+              ...updatedPredictions.manOfMatch,
+              pointsEarned: predResults.manOfMatch.points,
+              isCorrect: predResults.manOfMatch.isCorrect,
+              actualValue: match.statsSnapshot.manOfMatch?.playerId,
+              actualPlayerName: match.statsSnapshot.manOfMatch?.playerName
+            };
+          }
+          if (predResults.anyTeamAllOut) {
+            updatedPredictions.anyTeamAllOut = {
+              ...updatedPredictions.anyTeamAllOut,
+              pointsEarned: predResults.anyTeamAllOut.points,
+              isCorrect: predResults.anyTeamAllOut.isCorrect,
+              actualValue: match.statsSnapshot.anyTeamAllOut
+            };
+          }
 
           await Prediction.findByIdAndUpdate(prediction._id, {
             predictions: updatedPredictions,
@@ -1734,21 +1816,30 @@ const calculatePointsFromScorecard = async (req, res, next) => {
 const updateMatchStatsSnapshot = async (req, res, next) => {
   try {
     const { matchId } = req.params;
-    const { totalScore, mostSixes, mostFours, mostWickets, powerplayScore, fiftiesCount, result } = req.body;
+    const {
+      totalScore, mostSixes, mostFours, mostWickets, powerplayScore, fiftiesCount,
+      abhishekSharmaScore, indianTeamCatches, indiaScoreAbove230, manOfMatch, anyTeamAllOut,
+      result
+    } = req.body;
 
     const match = await Match.findById(matchId);
     if (!match) {
       return next(new ApiError(404, 'Match not found'));
     }
 
-    // Update stats snapshot
+    // Update stats snapshot (preserve existing values when not provided)
     match.statsSnapshot = {
-      totalScore: totalScore || match.statsSnapshot?.totalScore || 0,
+      totalScore: totalScore !== undefined ? totalScore : (match.statsSnapshot?.totalScore || 0),
       mostSixes: mostSixes || match.statsSnapshot?.mostSixes,
       mostFours: mostFours || match.statsSnapshot?.mostFours,
       mostWickets: mostWickets || match.statsSnapshot?.mostWickets,
-      powerplayScore: powerplayScore || match.statsSnapshot?.powerplayScore || 0,
-      fiftiesCount: fiftiesCount !== undefined ? fiftiesCount : (match.statsSnapshot?.fiftiesCount || 0)
+      powerplayScore: powerplayScore !== undefined ? powerplayScore : (match.statsSnapshot?.powerplayScore || 0),
+      fiftiesCount: fiftiesCount !== undefined ? fiftiesCount : (match.statsSnapshot?.fiftiesCount || 0),
+      abhishekSharmaScore: abhishekSharmaScore !== undefined ? abhishekSharmaScore : match.statsSnapshot?.abhishekSharmaScore,
+      indianTeamCatches: indianTeamCatches !== undefined ? indianTeamCatches : match.statsSnapshot?.indianTeamCatches,
+      indiaScoreAbove230: indiaScoreAbove230 !== undefined ? indiaScoreAbove230 : match.statsSnapshot?.indiaScoreAbove230,
+      manOfMatch: manOfMatch || match.statsSnapshot?.manOfMatch,
+      anyTeamAllOut: anyTeamAllOut !== undefined ? anyTeamAllOut : match.statsSnapshot?.anyTeamAllOut
     };
 
     // Update result if provided
