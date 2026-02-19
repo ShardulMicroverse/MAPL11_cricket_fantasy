@@ -1583,8 +1583,15 @@ const calculatePointsFromScorecard = async (req, res, next) => {
         mostFours,
         mostWickets,
         powerplayScore,
-        fiftiesCount
+        fiftiesCount,
+        // Preserve existing bonus prediction answers (set by admin separately)
+        abhishekSharmaScore: match.statsSnapshot?.abhishekSharmaScore,
+        indianTeamCatches: match.statsSnapshot?.indianTeamCatches,
+        indiaScoreAbove230: match.statsSnapshot?.indiaScoreAbove230,
+        manOfMatch: match.statsSnapshot?.manOfMatch,
+        anyTeamAllOut: match.statsSnapshot?.anyTeamAllOut
       };
+      match.markModified('statsSnapshot');
       await match.save();
     }
 
@@ -1841,6 +1848,7 @@ const updateMatchStatsSnapshot = async (req, res, next) => {
       manOfMatch: manOfMatch || match.statsSnapshot?.manOfMatch,
       anyTeamAllOut: anyTeamAllOut !== undefined ? anyTeamAllOut : match.statsSnapshot?.anyTeamAllOut
     };
+    match.markModified('statsSnapshot');
 
     // Update result if provided
     if (result) {
@@ -1857,6 +1865,118 @@ const updateMatchStatsSnapshot = async (req, res, next) => {
     res.json({
       success: true,
       data: match
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Calculate bonus prediction points only (without touching fantasy team points)
+ * Adds points for the 5 bonus questions on top of existing prediction points.
+ * Idempotent: subtracts old bonus points before adding new ones.
+ * POST /api/admin/matches/:matchId/calculate-bonus-predictions
+ */
+const calculateBonusPredictionPoints = async (req, res, next) => {
+  try {
+    const { matchId } = req.params;
+
+    const match = await Match.findById(matchId);
+    if (!match) return next(new ApiError(404, 'Match not found'));
+    if (!match.statsSnapshot) return next(new ApiError(400, 'Match stats snapshot not set. Save bonus answers first.'));
+
+    const snap = match.statsSnapshot;
+
+    // Inline helpers
+    const _hasAnswer = (field) => field && field.answer !== undefined && field.answer !== null && field.answer !== '';
+    const _hasActual = (v) => v !== undefined && v !== null && v !== '';
+
+    const predictions = await Prediction.find({ matchId });
+    let updated = 0;
+
+    for (const prediction of predictions) {
+      try {
+        const predObj = prediction.predictions.toObject ? prediction.predictions.toObject() : prediction.predictions;
+        const updatedPredictions = { ...predObj };
+
+        // Subtract old bonus points (in case this was run before)
+        let oldBonusPoints = 0;
+        const bonusFieldNames = ['abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut'];
+        for (const f of bonusFieldNames) {
+          oldBonusPoints += predObj[f]?.pointsEarned || 0;
+        }
+
+        let newBonusPoints = 0;
+
+        // abhishekSharmaScore (with ±10 buffer)
+        if (_hasAnswer(predObj.abhishekSharmaScore) && _hasActual(snap.abhishekSharmaScore)) {
+          const diff = Math.abs(Number(predObj.abhishekSharmaScore.answer) - Number(snap.abhishekSharmaScore));
+          let pts, isCorrect;
+          if (diff === 0) { pts = 150; isCorrect = true; }
+          else if (diff <= 10) { pts = 75; isCorrect = false; }
+          else { pts = -10; isCorrect = false; }
+          newBonusPoints += pts;
+          updatedPredictions.abhishekSharmaScore = { ...predObj.abhishekSharmaScore, pointsEarned: pts, isCorrect, actualValue: snap.abhishekSharmaScore };
+        }
+
+        // indianTeamCatches
+        if (_hasAnswer(predObj.indianTeamCatches) && _hasActual(snap.indianTeamCatches)) {
+          const isCorrect = Number(predObj.indianTeamCatches.answer) === Number(snap.indianTeamCatches);
+          const pts = isCorrect ? 150 : -10;
+          newBonusPoints += pts;
+          updatedPredictions.indianTeamCatches = { ...predObj.indianTeamCatches, pointsEarned: pts, isCorrect, actualValue: snap.indianTeamCatches };
+        }
+
+        // indiaScoreAbove230
+        if (_hasAnswer(predObj.indiaScoreAbove230) && _hasActual(snap.indiaScoreAbove230)) {
+          const isCorrect = predObj.indiaScoreAbove230.answer === snap.indiaScoreAbove230;
+          const pts = isCorrect ? 150 : -10;
+          newBonusPoints += pts;
+          updatedPredictions.indiaScoreAbove230 = { ...predObj.indiaScoreAbove230, pointsEarned: pts, isCorrect, actualValue: snap.indiaScoreAbove230 };
+        }
+
+        // manOfMatch
+        if (_hasAnswer(predObj.manOfMatch) && _hasActual(snap.manOfMatch?.playerId)) {
+          const isCorrect = predObj.manOfMatch.answer?.toString() === snap.manOfMatch.playerId?.toString();
+          const pts = isCorrect ? 150 : -10;
+          newBonusPoints += pts;
+          updatedPredictions.manOfMatch = { ...predObj.manOfMatch, pointsEarned: pts, isCorrect, actualValue: snap.manOfMatch.playerId, actualPlayerName: snap.manOfMatch.playerName };
+        }
+
+        // anyTeamAllOut
+        if (_hasAnswer(predObj.anyTeamAllOut) && _hasActual(snap.anyTeamAllOut)) {
+          const isCorrect = predObj.anyTeamAllOut.answer === snap.anyTeamAllOut;
+          const pts = isCorrect ? 150 : -10;
+          newBonusPoints += pts;
+          updatedPredictions.anyTeamAllOut = { ...predObj.anyTeamAllOut, pointsEarned: pts, isCorrect, actualValue: snap.anyTeamAllOut };
+        }
+
+        const pointsDelta = newBonusPoints - oldBonusPoints;
+
+        await Prediction.findByIdAndUpdate(prediction._id, {
+          $set: { predictions: updatedPredictions },
+          $inc: { totalPredictionPoints: pointsDelta }
+        });
+
+        // Update user total fantasy points by the delta
+        if (pointsDelta !== 0) {
+          await User.findByIdAndUpdate(prediction.userId, {
+            $inc: { 'stats.totalFantasyPoints': pointsDelta }
+          });
+        }
+
+        updated++;
+      } catch (err) {
+        console.error('Error scoring bonus prediction for user:', prediction.userId, err);
+      }
+    }
+
+    // Recalculate best ranks
+    await updateUserBestRanks();
+
+    res.json({
+      success: true,
+      data: { updated, message: `Bonus prediction points applied for ${updated} predictions` }
     });
   } catch (error) {
     next(error);
@@ -2129,6 +2249,7 @@ module.exports = {
   getMatchesFromDb,
   deleteMatch,
   updateMatchStatsSnapshot,
+  calculateBonusPredictionPoints,
 
   // Fantasy points
   calculateFantasyPoints,

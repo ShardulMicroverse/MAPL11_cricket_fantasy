@@ -23,6 +23,7 @@ const {
   getMatchesFromDb,
   deleteMatch,
   updateMatchStatsSnapshot,
+  calculateBonusPredictionPoints,
 
   // Fantasy points
   calculateFantasyPoints,
@@ -65,6 +66,7 @@ router.get('/matches', getMatchesFromDb);
 router.post('/create-match', createMatch);
 router.patch('/matches/:id/status', updateMatchStatus);
 router.post('/matches/:matchId/stats', updateMatchStatsSnapshot);
+router.post('/matches/:matchId/calculate-bonus-predictions', calculateBonusPredictionPoints);
 router.delete('/matches/:id', deleteMatch);
 
 // Player management

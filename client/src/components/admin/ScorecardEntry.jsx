@@ -150,6 +150,18 @@ export default function ScorecardEntry({ matchId, onClose }) {
     }
   }
 
+  const applyBonusPredictions = async () => {
+    try {
+      setSaving(true)
+      const response = await api.post(`/admin/matches/${matchId}/calculate-bonus-predictions`)
+      success(response.data?.message || `Bonus points applied`)
+    } catch (err) {
+      showError(err.message || 'Failed to apply bonus predictions')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const updateMatchStatsSnapshot = async () => {
     try {
       setSaving(true)
@@ -532,6 +544,17 @@ export default function ScorecardEntry({ matchId, onClose }) {
           disabled={saving}
         >
           {saving ? 'Calculating...' : 'Calculate Fantasy Points'}
+        </button>
+        <button
+          className="btn btn-warning"
+          onClick={async () => {
+            await updateMatchStatsSnapshot()
+            await applyBonusPredictions()
+          }}
+          disabled={saving}
+          style={{ background: 'var(--warning, #f59e0b)', color: '#fff', border: 'none' }}
+        >
+          {saving ? 'Applying...' : 'Save & Apply Bonus Predictions'}
         </button>
       </div>
 
