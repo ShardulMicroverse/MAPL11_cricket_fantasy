@@ -12,6 +12,8 @@ const FantasyTeam = require('../models/FantasyTeam');
 const Prediction = require('../models/Prediction');
 const PlayerMatchStats = require('../models/PlayerMatchStats');
 const User = require('../models/User');
+const PermanentTeam = require('../models/PermanentTeam');
+const TeamMatchPerformance = require('../models/TeamMatchPerformance');
 const ApiError = require('../utils/ApiError');
 
 /**
@@ -1963,6 +1965,31 @@ const calculateBonusPredictionPoints = async (req, res, next) => {
           await User.findByIdAndUpdate(prediction.userId, {
             $inc: { 'stats.totalFantasyPoints': pointsDelta }
           });
+
+          // Update TeamMatchPerformance so permanent team totals stay accurate
+          const userDoc = await User.findById(prediction.userId).select('permanentTeamId').lean();
+          if (userDoc?.permanentTeamId) {
+            const teamPerf = await TeamMatchPerformance.findOne({
+              teamId: userDoc.permanentTeamId,
+              matchId
+            });
+            if (teamPerf) {
+              const memberPerf = teamPerf.memberPerformances.find(
+                mp => mp.userId.toString() === prediction.userId.toString()
+              );
+              if (memberPerf) {
+                memberPerf.predictionPoints = (memberPerf.predictionPoints || 0) + pointsDelta;
+                memberPerf.totalPoints = (memberPerf.fantasyPoints || 0) + memberPerf.predictionPoints;
+                teamPerf.teamTotalPoints = (teamPerf.teamTotalPoints || 0) + pointsDelta;
+                teamPerf.markModified('memberPerformances');
+                await teamPerf.save();
+              }
+              // Update PermanentTeam overall stats
+              await PermanentTeam.findByIdAndUpdate(userDoc.permanentTeamId, {
+                $inc: { 'stats.totalPoints': pointsDelta }
+              });
+            }
+          }
         }
 
         updated++;
