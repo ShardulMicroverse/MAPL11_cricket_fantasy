@@ -1598,10 +1598,10 @@ const calculatePointsFromScorecard = async (req, res, next) => {
       match.markModified('statsSnapshot');
       const snap = match.statsSnapshot;
 if (snap) {
-  if (!snap.manOfMatch?.playerId) match.statsSnapshot.manOfMatch = undefined;
-  if (!snap.mostSixes?.playerId) match.statsSnapshot.mostSixes = undefined;
-  if (!snap.mostFours?.playerId) match.statsSnapshot.mostFours = undefined;
-  if (!snap.mostWickets?.playerId) match.statsSnapshot.mostWickets = undefined;
+  if (!snap.manOfMatch?.playerId) match.statsSnapshot.manOfMatch = null;
+  if (!snap.mostSixes?.playerId) match.statsSnapshot.mostSixes = null;
+  if (!snap.mostFours?.playerId) match.statsSnapshot.mostFours = null;
+  if (!snap.mostWickets?.playerId) match.statsSnapshot.mostWickets = null;
   match.markModified('statsSnapshot');
 }
 
