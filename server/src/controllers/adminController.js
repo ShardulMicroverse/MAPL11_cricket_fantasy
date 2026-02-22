@@ -1478,15 +1478,15 @@ const getMatchScorecard = async (req, res, next) => {
       }
       if (s.bowling.wickets > maxWickets) {
         maxWickets = s.bowling.wickets;
-        summary.mostWickets = { playerId: s.playerId._id, name: s.playerId.name, value: s.bowling.wickets };
+        summary.mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, value: s.bowling.wickets };
       }
       if (s.batting.sixes > maxSixes) {
         maxSixes = s.batting.sixes;
-        summary.mostSixes = { playerId: s.playerId._id, name: s.playerId.name, value: s.batting.sixes };
+        summary.mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, value: s.batting.sixes };
       }
       if (s.batting.fours > maxFours) {
         maxFours = s.batting.fours;
-        summary.mostFours = { playerId: s.playerId._id, name: s.playerId.name, value: s.batting.fours };
+        summary.mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, value: s.batting.fours };
       }
     });
 
@@ -1594,6 +1594,15 @@ const calculatePointsFromScorecard = async (req, res, next) => {
         anyTeamAllOut: match.statsSnapshot?.anyTeamAllOut
       };
       match.markModified('statsSnapshot');
+      const snap = match.statsSnapshot;
+if (snap) {
+  if (!snap.manOfMatch?.playerId) match.statsSnapshot.manOfMatch = undefined;
+  if (!snap.mostSixes?.playerId) match.statsSnapshot.mostSixes = undefined;
+  if (!snap.mostFours?.playerId) match.statsSnapshot.mostFours = undefined;
+  if (!snap.mostWickets?.playerId) match.statsSnapshot.mostWickets = undefined;
+  match.markModified('statsSnapshot');
+}
+
       await match.save();
     }
 
