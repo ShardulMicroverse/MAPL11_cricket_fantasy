@@ -788,6 +788,8 @@ const calculateFantasyPoints = async (req, res, next) => {
     const match = await Match.findById(matchId);
     if (!match) {
       return next(new ApiError(404, 'Match not found'));
+      console.log('=== STATS SNAPSHOT FROM DB ===');
+console.log(JSON.stringify(match.statsSnapshot, null, 2));
     }
 
     // Get all fantasy teams for this match
@@ -1478,15 +1480,15 @@ const getMatchScorecard = async (req, res, next) => {
       }
       if (s.bowling.wickets > maxWickets) {
         maxWickets = s.bowling.wickets;
-        summary.mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, value: s.bowling.wickets };
+        summary.mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.bowling.wickets };
       }
       if (s.batting.sixes > maxSixes) {
         maxSixes = s.batting.sixes;
-        summary.mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, value: s.batting.sixes };
+        summary.mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.sixes };
       }
       if (s.batting.fours > maxFours) {
         maxFours = s.batting.fours;
-        summary.mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, value: s.batting.fours };
+        summary.mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.fours };
       }
     });
 
@@ -1555,15 +1557,15 @@ const calculatePointsFromScorecard = async (req, res, next) => {
 
         if ((s.batting.sixes || 0) > maxSixes) {
           maxSixes = s.batting.sixes;
-          mostSixes = { playerId: s.playerId._id, name: s.playerId.name, value: s.batting.sixes };
+          mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.sixes };
         }
         if ((s.batting.fours || 0) > maxFours) {
           maxFours = s.batting.fours;
-          mostFours = { playerId: s.playerId._id, name: s.playerId.name, value: s.batting.fours };
+          mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.fours };
         }
         if ((s.bowling.wickets || 0) > maxWickets) {
           maxWickets = s.bowling.wickets;
-          mostWickets = { playerId: s.playerId._id, name: s.playerId.name, value: s.bowling.wickets };
+          mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.bowling.wickets };
         }
       });
 
@@ -1843,6 +1845,7 @@ const updateMatchStatsSnapshot = async (req, res, next) => {
     const match = await Match.findById(matchId);
     if (!match) {
       return next(new ApiError(404, 'Match not found'));
+      
     }
 
     // Update stats snapshot (preserve existing values when not provided)
