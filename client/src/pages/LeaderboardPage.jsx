@@ -67,7 +67,7 @@ export default function LeaderboardPage() {
   return (
     <div className="leaderboard-page">
       <div className="leaderboard-header">
-        <h1 className="leaderboard-title">Leaderboard</h1>
+        <h1 className="leaderboard-title">Leaderboard  PLEASE WAIT FOR THE POINTS TO BE UPDATES OF IND VS SA</h1>
       </div>
 
       {match && (
