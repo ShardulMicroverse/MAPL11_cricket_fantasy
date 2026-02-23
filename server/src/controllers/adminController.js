@@ -1520,8 +1520,9 @@ const calculatePointsFromScorecard = async (req, res, next) => {
     const { matchId } = req.params;
     const { updateMatchStats } = req.body;
 
-    const match = await Match.findById(matchId);
-    if (!match) {
+    // Use .lean() to get a plain JS object — avoids Mongoose mutation issues
+    const matchRaw = await Match.findById(matchId).lean();
+    if (!matchRaw) {
       return next(new ApiError(404, 'Match not found'));
     }
 
@@ -1538,7 +1539,6 @@ const calculatePointsFromScorecard = async (req, res, next) => {
       playerPointsMap[s.playerId.toString()] = s.fantasyPoints || 0;
     });
 
-    // Debug logging
     console.log('=== CALCULATE POINTS DEBUG ===');
     console.log('PlayerMatchStats count:', playerStats.length);
     console.log('PlayerPointsMap:', JSON.stringify(playerPointsMap, null, 2));
@@ -1569,43 +1569,38 @@ const calculatePointsFromScorecard = async (req, res, next) => {
         }
       });
 
-      // Calculate totalScore from actual match result (includes extras)
-      // Format: "182/5 (20)" — parse runs before the "/"
       const parseScore = (scoreStr) => {
         if (!scoreStr) return 0;
-        const match = scoreStr.match(/^(\d+)/);
-        return match ? parseInt(match[1], 10) : 0;
+        const m = scoreStr.match(/^(\d+)/);
+        return m ? parseInt(m[1], 10) : 0;
       };
-      const totalScore = parseScore(match.result?.team1Score) + parseScore(match.result?.team2Score);
-
-      // Estimate powerplay score as ~30% of total (can be updated via admin manually)
+      const totalScore = parseScore(matchRaw.result?.team1Score) + parseScore(matchRaw.result?.team2Score);
       const powerplayScore = Math.round(totalScore * 0.3);
 
-     // Read existing bonus values BEFORE overwriting statsSnapshot
-const existingAbhishekSharmaScore = match.statsSnapshot?.abhishekSharmaScore ?? null;
-const existingIndianTeamCatches = match.statsSnapshot?.indianTeamCatches ?? null;
-const existingIndiaScoreAbove230 = match.statsSnapshot?.indiaScoreAbove230 ?? null;
-const existingManOfMatch = match.statsSnapshot?.manOfMatch ?? null;
-const existingAnyTeamAllOut = match.statsSnapshot?.anyTeamAllOut ?? null;
+      // Read existing bonus values from the lean (plain JS) object — no Mongoose mutation
+      const existingSnap = matchRaw.statsSnapshot || {};
 
-match.statsSnapshot = {
-  totalScore,
-  mostSixes: mostSixes || null,
-  mostFours: mostFours || null,
-  mostWickets: mostWickets || null,
-  powerplayScore,
-  fiftiesCount,
-  abhishekSharmaScore: existingAbhishekSharmaScore,
-  indianTeamCatches: existingIndianTeamCatches,
-  indiaScoreAbove230: existingIndiaScoreAbove230,
-  manOfMatch: existingManOfMatch,
-  anyTeamAllOut: existingAnyTeamAllOut
-};
-match.markModified('statsSnapshot');
-await match.save();
+      const newSnapshot = {
+        totalScore,
+        mostSixes: mostSixes || null,
+        mostFours: mostFours || null,
+        mostWickets: mostWickets || null,
+        powerplayScore,
+        fiftiesCount,
+        abhishekSharmaScore: existingSnap.abhishekSharmaScore ?? null,
+        indianTeamCatches: existingSnap.indianTeamCatches ?? null,
+        indiaScoreAbove230: existingSnap.indiaScoreAbove230 ?? null,
+        manOfMatch: existingSnap.manOfMatch ?? null,
+        anyTeamAllOut: existingSnap.anyTeamAllOut ?? null
+      };
+
+      // Use findByIdAndUpdate instead of match.save() to avoid Mongoose cast errors
+      await Match.findByIdAndUpdate(matchId, { $set: { statsSnapshot: newSnapshot } });
     }
 
-    // Get all fantasy teams for this match
+    // Re-fetch match fresh after potential update (as Mongoose doc for later use)
+    const match = await Match.findById(matchId);
+
     const fantasyTeams = await FantasyTeam.find({ matchId })
       .populate('players.playerId', 'name');
 
@@ -1623,7 +1618,6 @@ await match.save();
 
     for (const team of fantasyTeams) {
       try {
-        // Debug: log team players
         console.log('--- Fantasy Team:', team._id.toString(), '---');
         team.players.forEach((p, i) => {
           const resolvedId = p.playerId?._id ? p.playerId._id.toString() : p.playerId?.toString();
@@ -1650,7 +1644,6 @@ await match.save();
       }
     }
 
-    // Also calculate prediction points if match stats are available
     if (match.statsSnapshot) {
       const predictions = await Prediction.find({ matchId });
 
@@ -1661,101 +1654,40 @@ await match.save();
             match.statsSnapshot
           );
 
-          // Build updated predictions with results
           const updatedPredictions = { ...prediction.predictions.toObject() };
 
-          // Update each prediction field with results
           if (predResults.totalScore) {
-            updatedPredictions.totalScore = {
-              ...updatedPredictions.totalScore,
-              pointsEarned: predResults.totalScore.points,
-              isCorrect: predResults.totalScore.isCorrect,
-              actualValue: match.statsSnapshot.totalScore
-            };
+            updatedPredictions.totalScore = { ...updatedPredictions.totalScore, pointsEarned: predResults.totalScore.points, isCorrect: predResults.totalScore.isCorrect, actualValue: match.statsSnapshot.totalScore };
           }
           if (predResults.mostSixes) {
-            updatedPredictions.mostSixes = {
-              ...updatedPredictions.mostSixes,
-              pointsEarned: predResults.mostSixes.points,
-              isCorrect: predResults.mostSixes.isCorrect,
-              actualValue: match.statsSnapshot.mostSixes?.playerId,
-              actualPlayerName: match.statsSnapshot.mostSixes?.name || match.statsSnapshot.mostSixes?.playerName
-            };
+            updatedPredictions.mostSixes = { ...updatedPredictions.mostSixes, pointsEarned: predResults.mostSixes.points, isCorrect: predResults.mostSixes.isCorrect, actualValue: match.statsSnapshot.mostSixes?.playerId, actualPlayerName: match.statsSnapshot.mostSixes?.playerName };
           }
           if (predResults.mostFours) {
-            updatedPredictions.mostFours = {
-              ...updatedPredictions.mostFours,
-              pointsEarned: predResults.mostFours.points,
-              isCorrect: predResults.mostFours.isCorrect,
-              actualValue: match.statsSnapshot.mostFours?.playerId,
-              actualPlayerName: match.statsSnapshot.mostFours?.name || match.statsSnapshot.mostFours?.playerName
-            };
+            updatedPredictions.mostFours = { ...updatedPredictions.mostFours, pointsEarned: predResults.mostFours.points, isCorrect: predResults.mostFours.isCorrect, actualValue: match.statsSnapshot.mostFours?.playerId, actualPlayerName: match.statsSnapshot.mostFours?.playerName };
           }
           if (predResults.mostWickets) {
-            updatedPredictions.mostWickets = {
-              ...updatedPredictions.mostWickets,
-              pointsEarned: predResults.mostWickets.points,
-              isCorrect: predResults.mostWickets.isCorrect,
-              actualValue: match.statsSnapshot.mostWickets?.playerId,
-              actualPlayerName: match.statsSnapshot.mostWickets?.name || match.statsSnapshot.mostWickets?.playerName
-            };
+            updatedPredictions.mostWickets = { ...updatedPredictions.mostWickets, pointsEarned: predResults.mostWickets.points, isCorrect: predResults.mostWickets.isCorrect, actualValue: match.statsSnapshot.mostWickets?.playerId, actualPlayerName: match.statsSnapshot.mostWickets?.playerName };
           }
           if (predResults.powerplayScore) {
-            updatedPredictions.powerplayScore = {
-              ...updatedPredictions.powerplayScore,
-              pointsEarned: predResults.powerplayScore.points,
-              isCorrect: predResults.powerplayScore.isCorrect,
-              actualValue: match.statsSnapshot.powerplayScore
-            };
+            updatedPredictions.powerplayScore = { ...updatedPredictions.powerplayScore, pointsEarned: predResults.powerplayScore.points, isCorrect: predResults.powerplayScore.isCorrect, actualValue: match.statsSnapshot.powerplayScore };
           }
           if (predResults.fiftiesCount) {
-            updatedPredictions.fiftiesCount = {
-              ...updatedPredictions.fiftiesCount,
-              pointsEarned: predResults.fiftiesCount.points,
-              isCorrect: predResults.fiftiesCount.isCorrect,
-              actualValue: match.statsSnapshot.fiftiesCount
-            };
+            updatedPredictions.fiftiesCount = { ...updatedPredictions.fiftiesCount, pointsEarned: predResults.fiftiesCount.points, isCorrect: predResults.fiftiesCount.isCorrect, actualValue: match.statsSnapshot.fiftiesCount };
           }
           if (predResults.abhishekSharmaScore) {
-            updatedPredictions.abhishekSharmaScore = {
-              ...updatedPredictions.abhishekSharmaScore,
-              pointsEarned: predResults.abhishekSharmaScore.points,
-              isCorrect: predResults.abhishekSharmaScore.isCorrect,
-              actualValue: match.statsSnapshot.abhishekSharmaScore
-            };
+            updatedPredictions.abhishekSharmaScore = { ...updatedPredictions.abhishekSharmaScore, pointsEarned: predResults.abhishekSharmaScore.points, isCorrect: predResults.abhishekSharmaScore.isCorrect, actualValue: match.statsSnapshot.abhishekSharmaScore };
           }
           if (predResults.indianTeamCatches) {
-            updatedPredictions.indianTeamCatches = {
-              ...updatedPredictions.indianTeamCatches,
-              pointsEarned: predResults.indianTeamCatches.points,
-              isCorrect: predResults.indianTeamCatches.isCorrect,
-              actualValue: match.statsSnapshot.indianTeamCatches
-            };
+            updatedPredictions.indianTeamCatches = { ...updatedPredictions.indianTeamCatches, pointsEarned: predResults.indianTeamCatches.points, isCorrect: predResults.indianTeamCatches.isCorrect, actualValue: match.statsSnapshot.indianTeamCatches };
           }
           if (predResults.indiaScoreAbove230) {
-            updatedPredictions.indiaScoreAbove230 = {
-              ...updatedPredictions.indiaScoreAbove230,
-              pointsEarned: predResults.indiaScoreAbove230.points,
-              isCorrect: predResults.indiaScoreAbove230.isCorrect,
-              actualValue: match.statsSnapshot.indiaScoreAbove230
-            };
+            updatedPredictions.indiaScoreAbove230 = { ...updatedPredictions.indiaScoreAbove230, pointsEarned: predResults.indiaScoreAbove230.points, isCorrect: predResults.indiaScoreAbove230.isCorrect, actualValue: match.statsSnapshot.indiaScoreAbove230 };
           }
           if (predResults.manOfMatch) {
-            updatedPredictions.manOfMatch = {
-              ...updatedPredictions.manOfMatch,
-              pointsEarned: predResults.manOfMatch.points,
-              isCorrect: predResults.manOfMatch.isCorrect,
-              actualValue: match.statsSnapshot.manOfMatch?.playerId,
-              actualPlayerName: match.statsSnapshot.manOfMatch?.playerName
-            };
+            updatedPredictions.manOfMatch = { ...updatedPredictions.manOfMatch, pointsEarned: predResults.manOfMatch.points, isCorrect: predResults.manOfMatch.isCorrect, actualValue: match.statsSnapshot.manOfMatch?.playerId, actualPlayerName: match.statsSnapshot.manOfMatch?.playerName };
           }
           if (predResults.anyTeamAllOut) {
-            updatedPredictions.anyTeamAllOut = {
-              ...updatedPredictions.anyTeamAllOut,
-              pointsEarned: predResults.anyTeamAllOut.points,
-              isCorrect: predResults.anyTeamAllOut.isCorrect,
-              actualValue: match.statsSnapshot.anyTeamAllOut
-            };
+            updatedPredictions.anyTeamAllOut = { ...updatedPredictions.anyTeamAllOut, pointsEarned: predResults.anyTeamAllOut.points, isCorrect: predResults.anyTeamAllOut.isCorrect, actualValue: match.statsSnapshot.anyTeamAllOut };
           }
 
           await Prediction.findByIdAndUpdate(prediction._id, {
@@ -1764,7 +1696,6 @@ await match.save();
             isScored: true
           });
 
-          // Count correct predictions for user stats
           const correctCount = Object.values(predResults).filter(r => r.isCorrect).length;
           const totalPredictions = Object.keys(predResults).length;
 
@@ -1780,16 +1711,13 @@ await match.save();
       }
     }
 
-    // Update user stats (recalculate total points from all matches)
     const userIds = [...new Set(fantasyTeams.map(t => t.userId.toString()))];
     for (const odUserId of userIds) {
       try {
-        // Get all fantasy teams for this user
         const userTeams = await FantasyTeam.find({ userId: odUserId });
         const totalFantasyPoints = userTeams.reduce((sum, t) => sum + (t.fantasyPoints || 0), 0);
         const matchesPlayed = userTeams.filter(t => t.fantasyPoints > 0).length;
 
-        // Get all predictions for this user
         const userPredictions = await Prediction.find({ userId: odUserId, isScored: true });
         const totalPredictionPoints = userPredictions.reduce((sum, p) => sum + (p.totalPredictionPoints || 0), 0);
 
@@ -1802,10 +1730,8 @@ await match.save();
       }
     }
 
-    // Calculate and update best ranks for this match
     await updateUserBestRanks();
 
-    // Calculate team points and award bonuses for permanent teams
     try {
       await permanentTeamService.completeMatchTeamScoring(matchId);
     } catch (teamErr) {
