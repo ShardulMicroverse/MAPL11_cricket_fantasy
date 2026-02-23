@@ -1846,20 +1846,33 @@ const updateMatchStatsSnapshot = async (req, res, next) => {
     }
 
     // Update stats snapshot (preserve existing values when not provided)
-    match.statsSnapshot = {
-      totalScore: totalScore !== undefined ? totalScore : (match.statsSnapshot?.totalScore || 0),
-      mostSixes: mostSixes || match.statsSnapshot?.mostSixes,
-      mostFours: mostFours || match.statsSnapshot?.mostFours,
-      mostWickets: mostWickets || match.statsSnapshot?.mostWickets,
-      powerplayScore: powerplayScore !== undefined ? powerplayScore : (match.statsSnapshot?.powerplayScore || 0),
-      fiftiesCount: fiftiesCount !== undefined ? fiftiesCount : (match.statsSnapshot?.fiftiesCount || 0),
-      abhishekSharmaScore: abhishekSharmaScore !== undefined ? abhishekSharmaScore : match.statsSnapshot?.abhishekSharmaScore,
-      indianTeamCatches: indianTeamCatches !== undefined ? indianTeamCatches : match.statsSnapshot?.indianTeamCatches,
-      indiaScoreAbove230: indiaScoreAbove230 !== undefined ? indiaScoreAbove230 : match.statsSnapshot?.indiaScoreAbove230,
-      manOfMatch: manOfMatch || match.statsSnapshot?.manOfMatch,
-      anyTeamAllOut: anyTeamAllOut !== undefined ? anyTeamAllOut : match.statsSnapshot?.anyTeamAllOut
-    };
-    match.markModified('statsSnapshot');
+   // Read ALL existing values BEFORE overwriting statsSnapshot
+const existingTotalScore = match.statsSnapshot?.totalScore || 0;
+const existingMostSixes = match.statsSnapshot?.mostSixes ?? null;
+const existingMostFours = match.statsSnapshot?.mostFours ?? null;
+const existingMostWickets = match.statsSnapshot?.mostWickets ?? null;
+const existingPowerplayScore = match.statsSnapshot?.powerplayScore || 0;
+const existingFiftiesCount = match.statsSnapshot?.fiftiesCount || 0;
+const existingAbhishekSharmaScore = match.statsSnapshot?.abhishekSharmaScore ?? null;
+const existingIndianTeamCatches = match.statsSnapshot?.indianTeamCatches ?? null;
+const existingIndiaScoreAbove230 = match.statsSnapshot?.indiaScoreAbove230 ?? null;
+const existingManOfMatch = match.statsSnapshot?.manOfMatch ?? null;
+const existingAnyTeamAllOut = match.statsSnapshot?.anyTeamAllOut ?? null;
+
+match.statsSnapshot = {
+  totalScore: totalScore !== undefined ? totalScore : existingTotalScore,
+  mostSixes: mostSixes || existingMostSixes,
+  mostFours: mostFours || existingMostFours,
+  mostWickets: mostWickets || existingMostWickets,
+  powerplayScore: powerplayScore !== undefined ? powerplayScore : existingPowerplayScore,
+  fiftiesCount: fiftiesCount !== undefined ? fiftiesCount : existingFiftiesCount,
+  abhishekSharmaScore: abhishekSharmaScore !== undefined ? abhishekSharmaScore : existingAbhishekSharmaScore,
+  indianTeamCatches: indianTeamCatches !== undefined ? indianTeamCatches : existingIndianTeamCatches,
+  indiaScoreAbove230: indiaScoreAbove230 !== undefined ? indiaScoreAbove230 : existingIndiaScoreAbove230,
+  manOfMatch: manOfMatch || existingManOfMatch,
+  anyTeamAllOut: anyTeamAllOut !== undefined ? anyTeamAllOut : existingAnyTeamAllOut
+};
+match.markModified('statsSnapshot');
 
     // Update result if provided
     if (result) {
