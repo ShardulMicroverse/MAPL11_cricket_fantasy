@@ -1581,31 +1581,28 @@ const calculatePointsFromScorecard = async (req, res, next) => {
       // Estimate powerplay score as ~30% of total (can be updated via admin manually)
       const powerplayScore = Math.round(totalScore * 0.3);
 
-      match.statsSnapshot = {
-        totalScore,
-        mostSixes,
-        mostFours,
-        mostWickets,
-        powerplayScore,
-        fiftiesCount,
-        // Preserve existing bonus prediction answers (set by admin separately)
-        abhishekSharmaScore: match.statsSnapshot?.abhishekSharmaScore,
-        indianTeamCatches: match.statsSnapshot?.indianTeamCatches,
-        indiaScoreAbove230: match.statsSnapshot?.indiaScoreAbove230,
-        manOfMatch: match.statsSnapshot?.manOfMatch,
-        anyTeamAllOut: match.statsSnapshot?.anyTeamAllOut
-      };
-      match.markModified('statsSnapshot');
-      const snap = match.statsSnapshot;
-if (snap) {
-  if (!snap.manOfMatch?.playerId) match.statsSnapshot.manOfMatch = null;
-  if (!snap.mostSixes?.playerId) match.statsSnapshot.mostSixes = null;
-  if (!snap.mostFours?.playerId) match.statsSnapshot.mostFours = null;
-  if (!snap.mostWickets?.playerId) match.statsSnapshot.mostWickets = null;
-  match.markModified('statsSnapshot');
-}
+     // Read existing bonus values BEFORE overwriting statsSnapshot
+const existingAbhishekSharmaScore = match.statsSnapshot?.abhishekSharmaScore ?? null;
+const existingIndianTeamCatches = match.statsSnapshot?.indianTeamCatches ?? null;
+const existingIndiaScoreAbove230 = match.statsSnapshot?.indiaScoreAbove230 ?? null;
+const existingManOfMatch = match.statsSnapshot?.manOfMatch ?? null;
+const existingAnyTeamAllOut = match.statsSnapshot?.anyTeamAllOut ?? null;
 
-      await match.save();
+match.statsSnapshot = {
+  totalScore,
+  mostSixes: mostSixes || null,
+  mostFours: mostFours || null,
+  mostWickets: mostWickets || null,
+  powerplayScore,
+  fiftiesCount,
+  abhishekSharmaScore: existingAbhishekSharmaScore,
+  indianTeamCatches: existingIndianTeamCatches,
+  indiaScoreAbove230: existingIndiaScoreAbove230,
+  manOfMatch: existingManOfMatch,
+  anyTeamAllOut: existingAnyTeamAllOut
+};
+match.markModified('statsSnapshot');
+await match.save();
     }
 
     // Get all fantasy teams for this match
