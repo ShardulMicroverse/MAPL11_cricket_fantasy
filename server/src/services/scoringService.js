@@ -196,22 +196,7 @@ const PREDICTION_SCORING = {
   mostWickets: { correct: 40, wrong: -10 },
   powerplayScore: { correct: 35, close: 15, closeRange: 10, wrong: -10 },
   fiftiesCount: { correct: 30, wrong: -10 },
-  abhishekSharmaScore: { correct: 150, close: 75, closeRange: 10, wrong: -10 },
-  indianTeamCatches: { correct: 150, wrong: -10 },
-  indiaScoreAbove230: { correct: 150, wrong: -10 },
-  manOfMatch: { correct: 150, wrong: -10 },
-  lastPlayerDismissed: { correct: 150, wrong: -75 },
-  anyTeamAllOut: { correct: 150, wrong: -10 }
-};
-
-// Helper: check if user actually answered a prediction field
-const hasAnswer = (field) => {
-  return field && field.answer !== undefined && field.answer !== null && field.answer !== '';
-};
-
-// Helper: check if actual value is set by admin
-const hasActual = (value) => {
-  return value !== undefined && value !== null && value !== '';
+  lastPlayerDismissed: { correct: 150, wrong: -75 }
 };
 
 // Calculate prediction points
@@ -219,135 +204,76 @@ const calculatePredictionPoints = (prediction, actualStats) => {
   let totalPoints = 0;
   const results = {};
 
-  // Total Score (optional)
-  if (hasAnswer(prediction.totalScore) && hasActual(actualStats.totalScore)) {
-    const totalScoreDiff = Math.abs(prediction.totalScore.answer - actualStats.totalScore);
-    if (totalScoreDiff === 0) {
-      results.totalScore = { points: PREDICTION_SCORING.totalScore.correct, isCorrect: true };
-    } else if (totalScoreDiff <= PREDICTION_SCORING.totalScore.closeRange) {
-      results.totalScore = { points: PREDICTION_SCORING.totalScore.close, isCorrect: false, isClose: true };
-    } else {
-      results.totalScore = { points: PREDICTION_SCORING.totalScore.wrong, isCorrect: false };
-    }
-    totalPoints += results.totalScore.points;
-  }
-
-  // Most Sixes (optional)
-  if (hasAnswer(prediction.mostSixes) && hasActual(actualStats.mostSixes?.playerId)) {
-    if (prediction.mostSixes.answer?.toString() === actualStats.mostSixes?.playerId?.toString()) {
-      results.mostSixes = { points: PREDICTION_SCORING.mostSixes.correct, isCorrect: true };
-    } else {
-      results.mostSixes = { points: PREDICTION_SCORING.mostSixes.wrong, isCorrect: false };
-    }
-    totalPoints += results.mostSixes.points;
-  }
-
-  // Most Fours (optional)
-  if (hasAnswer(prediction.mostFours) && hasActual(actualStats.mostFours?.playerId)) {
-    if (prediction.mostFours.answer?.toString() === actualStats.mostFours?.playerId?.toString()) {
-      results.mostFours = { points: PREDICTION_SCORING.mostFours.correct, isCorrect: true };
-    } else {
-      results.mostFours = { points: PREDICTION_SCORING.mostFours.wrong, isCorrect: false };
-    }
-    totalPoints += results.mostFours.points;
-  }
-
-  // Most Wickets (optional)
-  if (hasAnswer(prediction.mostWickets) && hasActual(actualStats.mostWickets?.playerId)) {
-    if (prediction.mostWickets.answer?.toString() === actualStats.mostWickets?.playerId?.toString()) {
-      results.mostWickets = { points: PREDICTION_SCORING.mostWickets.correct, isCorrect: true };
-    } else {
-      results.mostWickets = { points: PREDICTION_SCORING.mostWickets.wrong, isCorrect: false };
-    }
-    totalPoints += results.mostWickets.points;
-  }
-
-  // Powerplay Score (optional)
-  if (hasAnswer(prediction.powerplayScore) && hasActual(actualStats.powerplayScore)) {
-    const powerplayDiff = Math.abs(prediction.powerplayScore.answer - actualStats.powerplayScore);
-    if (powerplayDiff === 0) {
-      results.powerplayScore = { points: PREDICTION_SCORING.powerplayScore.correct, isCorrect: true };
-    } else if (powerplayDiff <= PREDICTION_SCORING.powerplayScore.closeRange) {
-      results.powerplayScore = { points: PREDICTION_SCORING.powerplayScore.close, isCorrect: false, isClose: true };
-    } else {
-      results.powerplayScore = { points: PREDICTION_SCORING.powerplayScore.wrong, isCorrect: false };
-    }
-    totalPoints += results.powerplayScore.points;
-  }
-
-  // Fifties Count (optional)
-  if (hasAnswer(prediction.fiftiesCount) && hasActual(actualStats.fiftiesCount)) {
-    if (prediction.fiftiesCount.answer === actualStats.fiftiesCount) {
-      results.fiftiesCount = { points: PREDICTION_SCORING.fiftiesCount.correct, isCorrect: true };
-    } else {
-      results.fiftiesCount = { points: PREDICTION_SCORING.fiftiesCount.wrong, isCorrect: false };
-    }
-    totalPoints += results.fiftiesCount.points;
-  }
-
-  // Abhishek Sharma Score (optional, with ±10 buffer)
-  if (hasAnswer(prediction.abhishekSharmaScore) && hasActual(actualStats.abhishekSharmaScore)) {
-    const abhishekDiff = Math.abs(Number(prediction.abhishekSharmaScore.answer) - Number(actualStats.abhishekSharmaScore));
-    if (abhishekDiff === 0) {
-      results.abhishekSharmaScore = { points: PREDICTION_SCORING.abhishekSharmaScore.correct, isCorrect: true };
-    } else if (abhishekDiff <= PREDICTION_SCORING.abhishekSharmaScore.closeRange) {
-      results.abhishekSharmaScore = { points: PREDICTION_SCORING.abhishekSharmaScore.close, isCorrect: false, isClose: true };
-    } else {
-      results.abhishekSharmaScore = { points: PREDICTION_SCORING.abhishekSharmaScore.wrong, isCorrect: false };
-    }
-    totalPoints += results.abhishekSharmaScore.points;
-  }
-
-  // Indian Team Catches (optional)
-  if (hasAnswer(prediction.indianTeamCatches) && hasActual(actualStats.indianTeamCatches)) {
-    if (Number(prediction.indianTeamCatches.answer) === Number(actualStats.indianTeamCatches)) {
-      results.indianTeamCatches = { points: PREDICTION_SCORING.indianTeamCatches.correct, isCorrect: true };
-    } else {
-      results.indianTeamCatches = { points: PREDICTION_SCORING.indianTeamCatches.wrong, isCorrect: false };
-    }
-    totalPoints += results.indianTeamCatches.points;
-  }
-
-  // India Score Above 230 (optional, yes/no)
-  if (hasAnswer(prediction.indiaScoreAbove230) && hasActual(actualStats.indiaScoreAbove230)) {
-    if (prediction.indiaScoreAbove230.answer === actualStats.indiaScoreAbove230) {
-      results.indiaScoreAbove230 = { points: PREDICTION_SCORING.indiaScoreAbove230.correct, isCorrect: true };
-    } else {
-      results.indiaScoreAbove230 = { points: PREDICTION_SCORING.indiaScoreAbove230.wrong, isCorrect: false };
-    }
-    totalPoints += results.indiaScoreAbove230.points;
-  }
-
-  // Man of the Match (optional)
-  if (hasAnswer(prediction.manOfMatch) && hasActual(actualStats.manOfMatch?.playerId)) {
-    if (prediction.manOfMatch.answer?.toString() === actualStats.manOfMatch?.playerId?.toString()) {
-      results.manOfMatch = { points: PREDICTION_SCORING.manOfMatch.correct, isCorrect: true };
-    } else {
-      results.manOfMatch = { points: PREDICTION_SCORING.manOfMatch.wrong, isCorrect: false };
-    }
-    totalPoints += results.manOfMatch.points;
-  }
-
-  // Any Team All Out (optional, yes/no)
-  if (hasAnswer(prediction.anyTeamAllOut) && hasActual(actualStats.anyTeamAllOut)) {
-    if (prediction.anyTeamAllOut.answer === actualStats.anyTeamAllOut) {
-      results.anyTeamAllOut = { points: PREDICTION_SCORING.anyTeamAllOut.correct, isCorrect: true };
-    } else {
-      results.anyTeamAllOut = { points: PREDICTION_SCORING.anyTeamAllOut.wrong, isCorrect: false };
-    }
-    totalPoints += results.anyTeamAllOut.points;
-  }
-
-
-  // Last Player Dismissed (optional)
-if (hasAnswer(prediction.lastPlayerDismissed) && hasActual(actualStats.lastPlayerDismissed?.playerId)) {
-  if (prediction.lastPlayerDismissed.answer?.toString() === actualStats.lastPlayerDismissed?.playerId?.toString()) {
-    results.lastPlayerDismissed = { points: PREDICTION_SCORING.lastPlayerDismissed.correct, isCorrect: true };
+  // Total Score
+  const totalScoreDiff = Math.abs(prediction.totalScore.answer - actualStats.totalScore);
+  if (totalScoreDiff === 0) {
+    results.totalScore = { points: PREDICTION_SCORING.totalScore.correct, isCorrect: true };
+  } else if (totalScoreDiff <= PREDICTION_SCORING.totalScore.closeRange) {
+    results.totalScore = { points: PREDICTION_SCORING.totalScore.close, isCorrect: false, isClose: true };
   } else {
-    results.lastPlayerDismissed = { points: PREDICTION_SCORING.lastPlayerDismissed.wrong, isCorrect: false };
+    results.totalScore = { points: PREDICTION_SCORING.totalScore.wrong, isCorrect: false };
   }
-  totalPoints += results.lastPlayerDismissed.points;
-}
+  totalPoints += results.totalScore.points;
+
+  // Most Sixes
+  if (prediction.mostSixes.answer?.toString() === actualStats.mostSixes?.playerId?.toString()) {
+    results.mostSixes = { points: PREDICTION_SCORING.mostSixes.correct, isCorrect: true };
+  } else {
+    results.mostSixes = { points: PREDICTION_SCORING.mostSixes.wrong, isCorrect: false };
+  }
+  totalPoints += results.mostSixes.points;
+
+  // Most Fours
+  if (prediction.mostFours.answer?.toString() === actualStats.mostFours?.playerId?.toString()) {
+    results.mostFours = { points: PREDICTION_SCORING.mostFours.correct, isCorrect: true };
+  } else {
+    results.mostFours = { points: PREDICTION_SCORING.mostFours.wrong, isCorrect: false };
+  }
+  totalPoints += results.mostFours.points;
+
+  // Most Wickets
+  if (prediction.mostWickets.answer?.toString() === actualStats.mostWickets?.playerId?.toString()) {
+    results.mostWickets = { points: PREDICTION_SCORING.mostWickets.correct, isCorrect: true };
+  } else {
+    results.mostWickets = { points: PREDICTION_SCORING.mostWickets.wrong, isCorrect: false };
+  }
+  totalPoints += results.mostWickets.points;
+
+  // Powerplay Score
+  const powerplayDiff = Math.abs(prediction.powerplayScore.answer - actualStats.powerplayScore);
+  if (powerplayDiff === 0) {
+    results.powerplayScore = { points: PREDICTION_SCORING.powerplayScore.correct, isCorrect: true };
+  } else if (powerplayDiff <= PREDICTION_SCORING.powerplayScore.closeRange) {
+    results.powerplayScore = { points: PREDICTION_SCORING.powerplayScore.close, isCorrect: false, isClose: true };
+  } else {
+    results.powerplayScore = { points: PREDICTION_SCORING.powerplayScore.wrong, isCorrect: false };
+  }
+  totalPoints += results.powerplayScore.points;
+
+  // Fifties Count
+  if (prediction.fiftiesCount.answer === actualStats.fiftiesCount) {
+    results.fiftiesCount = { points: PREDICTION_SCORING.fiftiesCount.correct, isCorrect: true };
+  } else {
+    results.fiftiesCount = { points: PREDICTION_SCORING.fiftiesCount.wrong, isCorrect: false };
+  }
+  totalPoints += results.fiftiesCount.points;
+
+  // Last Player Dismissed (optional bonus question)
+  if (
+    prediction.lastPlayerDismissed &&
+    prediction.lastPlayerDismissed.answer !== undefined &&
+    prediction.lastPlayerDismissed.answer !== '' &&
+    prediction.lastPlayerDismissed.answer !== null &&
+    actualStats.lastPlayerDismissed?.playerId
+  ) {
+    if (prediction.lastPlayerDismissed.answer?.toString() === actualStats.lastPlayerDismissed.playerId?.toString()) {
+      results.lastPlayerDismissed = { points: PREDICTION_SCORING.lastPlayerDismissed.correct, isCorrect: true };
+    } else {
+      results.lastPlayerDismissed = { points: PREDICTION_SCORING.lastPlayerDismissed.wrong, isCorrect: false };
+    }
+    totalPoints += results.lastPlayerDismissed.points;
+  }
+
   return { totalPoints, results };
 };
 
