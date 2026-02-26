@@ -200,6 +200,7 @@ const PREDICTION_SCORING = {
   indianTeamCatches: { correct: 150, wrong: -10 },
   indiaScoreAbove230: { correct: 150, wrong: -10 },
   manOfMatch: { correct: 150, wrong: -10 },
+  lastPlayerDismissed: { correct: 150, wrong: -75 },
   anyTeamAllOut: { correct: 150, wrong: -10 }
 };
 
@@ -337,6 +338,16 @@ const calculatePredictionPoints = (prediction, actualStats) => {
     totalPoints += results.anyTeamAllOut.points;
   }
 
+
+  // Last Player Dismissed (optional)
+if (hasAnswer(prediction.lastPlayerDismissed) && hasActual(actualStats.lastPlayerDismissed?.playerId)) {
+  if (prediction.lastPlayerDismissed.answer?.toString() === actualStats.lastPlayerDismissed?.playerId?.toString()) {
+    results.lastPlayerDismissed = { points: PREDICTION_SCORING.lastPlayerDismissed.correct, isCorrect: true };
+  } else {
+    results.lastPlayerDismissed = { points: PREDICTION_SCORING.lastPlayerDismissed.wrong, isCorrect: false };
+  }
+  totalPoints += results.lastPlayerDismissed.points;
+}
   return { totalPoints, results };
 };
 
