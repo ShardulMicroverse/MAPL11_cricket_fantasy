@@ -775,10 +775,6 @@ const deleteMatch = async (req, res, next) => {
 /**
  * Calculate fantasy points for a match
  * POST /api/admin/calculate-points/:matchId
- *
- * This can work in two modes:
- * 1. Automatic: Fetches scorecard from API and calculates points
- * 2. Manual: Admin provides player points directly
  */
 const calculateFantasyPoints = async (req, res, next) => {
   try {
@@ -789,7 +785,7 @@ const calculateFantasyPoints = async (req, res, next) => {
     if (!match) {
       return next(new ApiError(404, 'Match not found'));
       console.log('=== STATS SNAPSHOT FROM DB ===');
-console.log(JSON.stringify(match.statsSnapshot, null, 2));
+      console.log(JSON.stringify(match.statsSnapshot, null, 2));
     }
 
     // Get all fantasy teams for this match
@@ -807,12 +803,10 @@ console.log(JSON.stringify(match.statsSnapshot, null, 2));
     let playerPointsMap = {};
 
     if (useApi && match.externalMatchId && cricketApiService.isApiConfigured()) {
-      // Try to fetch from API
       try {
         const scorecard = await cricketApiService.getMatchScorecard(match.externalMatchId);
 
         if (scorecard && scorecard.scoreCard) {
-          // Process batting stats
           for (const innings of scorecard.scoreCard) {
             for (const batsman of (innings.batsman || [])) {
               const stats = {
@@ -827,7 +821,6 @@ console.log(JSON.stringify(match.statsSnapshot, null, 2));
                 fielding: {}
               };
 
-              // Find player in our database by external ID or name
               const player = await Player.findOne({
                 $or: [
                   { externalPlayerId: batsman.id },
@@ -841,7 +834,6 @@ console.log(JSON.stringify(match.statsSnapshot, null, 2));
               }
             }
 
-            // Process bowling stats
             for (const bowler of (innings.bowler || [])) {
               const stats = {
                 batting: {},
@@ -870,57 +862,43 @@ console.log(JSON.stringify(match.statsSnapshot, null, 2));
         }
       } catch (apiError) {
         console.error('API fetch failed:', apiError.message);
-        // Fall back to manual points if provided
         if (!playerPoints) {
           return next(new ApiError(400, 'Could not fetch scorecard from API and no manual points provided'));
         }
       }
     }
 
-    // If manual points provided, use them (can supplement or override API points)
     if (playerPoints && typeof playerPoints === 'object') {
       for (const [playerId, points] of Object.entries(playerPoints)) {
         playerPointsMap[playerId] = points;
       }
     }
 
-    // If no points calculated, generate random points for testing
     if (Object.keys(playerPointsMap).length === 0) {
-      // Generate test points for all players in fantasy teams
       const allPlayerIds = new Set();
       fantasyTeams.forEach(team => {
         team.players.forEach(p => allPlayerIds.add(p.playerId._id.toString()));
       });
-
       for (const playerId of allPlayerIds) {
-        // Random points between 10-80 for testing
         playerPointsMap[playerId] = Math.floor(Math.random() * 70) + 10;
       }
     }
 
-    // Update each fantasy team with calculated points
     const results = { teamsUpdated: 0, errors: [] };
 
     for (const team of fantasyTeams) {
       try {
         const totalPoints = scoringService.calculateFantasyTeamPoints(team, playerPointsMap);
-
         await FantasyTeam.findByIdAndUpdate(team._id, {
           fantasyPoints: totalPoints,
           isLocked: true
         });
-
         results.teamsUpdated++;
       } catch (err) {
-        results.errors.push({
-          teamId: team._id,
-          userId: team.userId,
-          error: err.message
-        });
+        results.errors.push({ teamId: team._id, userId: team.userId, error: err.message });
       }
     }
 
-    // Also calculate prediction points if match stats are available
     if (match.statsSnapshot) {
       const predictions = await Prediction.find({ matchId });
 
@@ -931,101 +909,44 @@ console.log(JSON.stringify(match.statsSnapshot, null, 2));
             match.statsSnapshot
           );
 
-          // Build updated predictions with results
           const updatedPredictions = { ...prediction.predictions.toObject() };
 
-          // Update each prediction field with results
           if (predResults.totalScore) {
-            updatedPredictions.totalScore = {
-              ...updatedPredictions.totalScore,
-              pointsEarned: predResults.totalScore.points,
-              isCorrect: predResults.totalScore.isCorrect,
-              actualValue: match.statsSnapshot.totalScore
-            };
+            updatedPredictions.totalScore = { ...updatedPredictions.totalScore, pointsEarned: predResults.totalScore.points, isCorrect: predResults.totalScore.isCorrect, actualValue: match.statsSnapshot.totalScore };
           }
           if (predResults.mostSixes) {
-            updatedPredictions.mostSixes = {
-              ...updatedPredictions.mostSixes,
-              pointsEarned: predResults.mostSixes.points,
-              isCorrect: predResults.mostSixes.isCorrect,
-              actualValue: match.statsSnapshot.mostSixes?.playerId,
-              actualPlayerName: match.statsSnapshot.mostSixes?.name || match.statsSnapshot.mostSixes?.playerName
-            };
+            updatedPredictions.mostSixes = { ...updatedPredictions.mostSixes, pointsEarned: predResults.mostSixes.points, isCorrect: predResults.mostSixes.isCorrect, actualValue: match.statsSnapshot.mostSixes?.playerId, actualPlayerName: match.statsSnapshot.mostSixes?.name || match.statsSnapshot.mostSixes?.playerName };
           }
           if (predResults.mostFours) {
-            updatedPredictions.mostFours = {
-              ...updatedPredictions.mostFours,
-              pointsEarned: predResults.mostFours.points,
-              isCorrect: predResults.mostFours.isCorrect,
-              actualValue: match.statsSnapshot.mostFours?.playerId,
-              actualPlayerName: match.statsSnapshot.mostFours?.name || match.statsSnapshot.mostFours?.playerName
-            };
+            updatedPredictions.mostFours = { ...updatedPredictions.mostFours, pointsEarned: predResults.mostFours.points, isCorrect: predResults.mostFours.isCorrect, actualValue: match.statsSnapshot.mostFours?.playerId, actualPlayerName: match.statsSnapshot.mostFours?.name || match.statsSnapshot.mostFours?.playerName };
           }
           if (predResults.mostWickets) {
-            updatedPredictions.mostWickets = {
-              ...updatedPredictions.mostWickets,
-              pointsEarned: predResults.mostWickets.points,
-              isCorrect: predResults.mostWickets.isCorrect,
-              actualValue: match.statsSnapshot.mostWickets?.playerId,
-              actualPlayerName: match.statsSnapshot.mostWickets?.name || match.statsSnapshot.mostWickets?.playerName
-            };
+            updatedPredictions.mostWickets = { ...updatedPredictions.mostWickets, pointsEarned: predResults.mostWickets.points, isCorrect: predResults.mostWickets.isCorrect, actualValue: match.statsSnapshot.mostWickets?.playerId, actualPlayerName: match.statsSnapshot.mostWickets?.name || match.statsSnapshot.mostWickets?.playerName };
           }
           if (predResults.powerplayScore) {
-            updatedPredictions.powerplayScore = {
-              ...updatedPredictions.powerplayScore,
-              pointsEarned: predResults.powerplayScore.points,
-              isCorrect: predResults.powerplayScore.isCorrect,
-              actualValue: match.statsSnapshot.powerplayScore
-            };
+            updatedPredictions.powerplayScore = { ...updatedPredictions.powerplayScore, pointsEarned: predResults.powerplayScore.points, isCorrect: predResults.powerplayScore.isCorrect, actualValue: match.statsSnapshot.powerplayScore };
           }
           if (predResults.fiftiesCount) {
-            updatedPredictions.fiftiesCount = {
-              ...updatedPredictions.fiftiesCount,
-              pointsEarned: predResults.fiftiesCount.points,
-              isCorrect: predResults.fiftiesCount.isCorrect,
-              actualValue: match.statsSnapshot.fiftiesCount
-            };
+            updatedPredictions.fiftiesCount = { ...updatedPredictions.fiftiesCount, pointsEarned: predResults.fiftiesCount.points, isCorrect: predResults.fiftiesCount.isCorrect, actualValue: match.statsSnapshot.fiftiesCount };
           }
           if (predResults.abhishekSharmaScore) {
-            updatedPredictions.abhishekSharmaScore = {
-              ...updatedPredictions.abhishekSharmaScore,
-              pointsEarned: predResults.abhishekSharmaScore.points,
-              isCorrect: predResults.abhishekSharmaScore.isCorrect,
-              actualValue: match.statsSnapshot.abhishekSharmaScore
-            };
+            updatedPredictions.abhishekSharmaScore = { ...updatedPredictions.abhishekSharmaScore, pointsEarned: predResults.abhishekSharmaScore.points, isCorrect: predResults.abhishekSharmaScore.isCorrect, actualValue: match.statsSnapshot.abhishekSharmaScore };
           }
           if (predResults.indianTeamCatches) {
-            updatedPredictions.indianTeamCatches = {
-              ...updatedPredictions.indianTeamCatches,
-              pointsEarned: predResults.indianTeamCatches.points,
-              isCorrect: predResults.indianTeamCatches.isCorrect,
-              actualValue: match.statsSnapshot.indianTeamCatches
-            };
+            updatedPredictions.indianTeamCatches = { ...updatedPredictions.indianTeamCatches, pointsEarned: predResults.indianTeamCatches.points, isCorrect: predResults.indianTeamCatches.isCorrect, actualValue: match.statsSnapshot.indianTeamCatches };
           }
           if (predResults.indiaScoreAbove230) {
-            updatedPredictions.indiaScoreAbove230 = {
-              ...updatedPredictions.indiaScoreAbove230,
-              pointsEarned: predResults.indiaScoreAbove230.points,
-              isCorrect: predResults.indiaScoreAbove230.isCorrect,
-              actualValue: match.statsSnapshot.indiaScoreAbove230
-            };
+            updatedPredictions.indiaScoreAbove230 = { ...updatedPredictions.indiaScoreAbove230, pointsEarned: predResults.indiaScoreAbove230.points, isCorrect: predResults.indiaScoreAbove230.isCorrect, actualValue: match.statsSnapshot.indiaScoreAbove230 };
           }
           if (predResults.manOfMatch) {
-            updatedPredictions.manOfMatch = {
-              ...updatedPredictions.manOfMatch,
-              pointsEarned: predResults.manOfMatch.points,
-              isCorrect: predResults.manOfMatch.isCorrect,
-              actualValue: match.statsSnapshot.manOfMatch?.playerId,
-              actualPlayerName: match.statsSnapshot.manOfMatch?.playerName
-            };
+            updatedPredictions.manOfMatch = { ...updatedPredictions.manOfMatch, pointsEarned: predResults.manOfMatch.points, isCorrect: predResults.manOfMatch.isCorrect, actualValue: match.statsSnapshot.manOfMatch?.playerId, actualPlayerName: match.statsSnapshot.manOfMatch?.playerName };
           }
           if (predResults.anyTeamAllOut) {
-            updatedPredictions.anyTeamAllOut = {
-              ...updatedPredictions.anyTeamAllOut,
-              pointsEarned: predResults.anyTeamAllOut.points,
-              isCorrect: predResults.anyTeamAllOut.isCorrect,
-              actualValue: match.statsSnapshot.anyTeamAllOut
-            };
+            updatedPredictions.anyTeamAllOut = { ...updatedPredictions.anyTeamAllOut, pointsEarned: predResults.anyTeamAllOut.points, isCorrect: predResults.anyTeamAllOut.isCorrect, actualValue: match.statsSnapshot.anyTeamAllOut };
+          }
+          // ── NEW ──
+          if (predResults.lastPlayerDismissed) {
+            updatedPredictions.lastPlayerDismissed = { ...updatedPredictions.lastPlayerDismissed, pointsEarned: predResults.lastPlayerDismissed.points, isCorrect: predResults.lastPlayerDismissed.isCorrect, actualValue: match.statsSnapshot.lastPlayerDismissed?.playerId, actualPlayerName: match.statsSnapshot.lastPlayerDismissed?.playerName };
           }
 
           await Prediction.findByIdAndUpdate(prediction._id, {
@@ -1039,16 +960,13 @@ console.log(JSON.stringify(match.statsSnapshot, null, 2));
       }
     }
 
-    // Update user stats (recalculate total points from all matches)
     const userIds = [...new Set(fantasyTeams.map(t => t.userId.toString()))];
     for (const odUserId of userIds) {
       try {
-        // Get all fantasy teams for this user
         const userTeams = await FantasyTeam.find({ userId: odUserId });
         const totalFantasyPoints = userTeams.reduce((sum, t) => sum + (t.fantasyPoints || 0), 0);
         const matchesPlayed = userTeams.filter(t => t.fantasyPoints > 0).length;
 
-        // Get all predictions for this user
         const userPredictions = await Prediction.find({ userId: odUserId, isScored: true });
         const totalPredictionPoints = userPredictions.reduce((sum, p) => sum + (p.totalPredictionPoints || 0), 0);
 
@@ -1061,10 +979,8 @@ console.log(JSON.stringify(match.statsSnapshot, null, 2));
       }
     }
 
-    // Calculate and update best ranks for this match
     await updateUserBestRanks();
 
-    // Calculate team points and award bonuses for permanent teams
     try {
       await permanentTeamService.completeMatchTeamScoring(matchId);
     } catch (teamErr) {
@@ -1097,7 +1013,6 @@ const setPlayerPoints = async (req, res, next) => {
       return next(new ApiError(400, 'playerPoints object is required'));
     }
 
-    // Forward to calculateFantasyPoints with manual points
     req.body = { playerPoints, useApi: false };
     return calculateFantasyPoints(req, res, next);
   } catch (error) {
@@ -1145,13 +1060,11 @@ const getMatchPlayersForScorecard = async (req, res, next) => {
       return next(new ApiError(404, 'Match not found'));
     }
 
-    // Get players from both teams - trim whitespace to avoid matching issues
     const team1ShortName = match.team1.shortName?.trim() || '';
     const team2ShortName = match.team2.shortName?.trim() || '';
     const team1Name = match.team1.name?.trim() || '';
     const team2Name = match.team2.name?.trim() || '';
 
-    // Escape special regex characters
     const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     const players = await Player.find({
@@ -1164,11 +1077,9 @@ const getMatchPlayersForScorecard = async (req, res, next) => {
       isActive: true
     }).select('_id name shortName team role').sort({ team: 1, name: 1 });
 
-    // Get existing stats for these players
     const existingStats = await PlayerMatchStats.find({ matchId })
       .populate('playerId', 'name shortName team role');
 
-    // Create a map of existing stats
     const statsMap = {};
     existingStats.forEach(stat => {
       if (stat.playerId) {
@@ -1176,16 +1087,13 @@ const getMatchPlayersForScorecard = async (req, res, next) => {
       }
     });
 
-    // Group players by team (with trimming)
     const team1Players = players.filter(p => {
       const team = p.team?.trim().toLowerCase() || '';
-      return team === team1ShortName.toLowerCase() ||
-             team.includes(team1Name.toLowerCase());
+      return team === team1ShortName.toLowerCase() || team.includes(team1Name.toLowerCase());
     });
     const team2Players = players.filter(p => {
       const team = p.team?.trim().toLowerCase() || '';
-      return team === team2ShortName.toLowerCase() ||
-             team.includes(team2Name.toLowerCase());
+      return team === team2ShortName.toLowerCase() || team.includes(team2Name.toLowerCase());
     });
 
     res.json({
@@ -1198,18 +1106,9 @@ const getMatchPlayersForScorecard = async (req, res, next) => {
           status: match.status,
           statsSnapshot: match.statsSnapshot || null
         },
-        team1Players: team1Players.map(p => ({
-          ...p.toObject(),
-          stats: statsMap[p._id.toString()] || null
-        })),
-        team2Players: team2Players.map(p => ({
-          ...p.toObject(),
-          stats: statsMap[p._id.toString()] || null
-        })),
-        allPlayers: players.map(p => ({
-          ...p.toObject(),
-          stats: statsMap[p._id.toString()] || null
-        }))
+        team1Players: team1Players.map(p => ({ ...p.toObject(), stats: statsMap[p._id.toString()] || null })),
+        team2Players: team2Players.map(p => ({ ...p.toObject(), stats: statsMap[p._id.toString()] || null })),
+        allPlayers: players.map(p => ({ ...p.toObject(), stats: statsMap[p._id.toString()] || null }))
       }
     });
   } catch (error) {
@@ -1226,19 +1125,12 @@ const savePlayerMatchStats = async (req, res, next) => {
     const { matchId, playerId } = req.params;
     const { batting, bowling, fielding, fantasyPoints, isManualPoints } = req.body;
 
-    // Validate match exists
     const match = await Match.findById(matchId);
-    if (!match) {
-      return next(new ApiError(404, 'Match not found'));
-    }
+    if (!match) return next(new ApiError(404, 'Match not found'));
 
-    // Validate player exists
     const player = await Player.findById(playerId);
-    if (!player) {
-      return next(new ApiError(404, 'Player not found'));
-    }
+    if (!player) return next(new ApiError(404, 'Player not found'));
 
-    // Prepare stats data
     const statsData = {
       matchId,
       playerId,
@@ -1248,9 +1140,7 @@ const savePlayerMatchStats = async (req, res, next) => {
         fours: batting?.fours || 0,
         sixes: batting?.sixes || 0,
         dots: batting?.dots || 0,
-        strikeRate: batting?.ballsFaced > 0
-          ? ((batting?.runs || 0) / batting.ballsFaced * 100).toFixed(2)
-          : 0,
+        strikeRate: batting?.ballsFaced > 0 ? ((batting?.runs || 0) / batting.ballsFaced * 100).toFixed(2) : 0,
         isOut: batting?.isOut || false,
         dismissalType: batting?.dismissalType || '',
         didBat: batting?.didBat || (batting?.runs > 0 || batting?.ballsFaced > 0)
@@ -1261,9 +1151,7 @@ const savePlayerMatchStats = async (req, res, next) => {
         runsConceded: bowling?.runsConceded || 0,
         wickets: bowling?.wickets || 0,
         dots: bowling?.dots || 0,
-        economy: bowling?.overs > 0
-          ? ((bowling?.runsConceded || 0) / bowling.overs).toFixed(2)
-          : 0,
+        economy: bowling?.overs > 0 ? ((bowling?.runsConceded || 0) / bowling.overs).toFixed(2) : 0,
         wides: bowling?.wides || 0,
         noBalls: bowling?.noBalls || 0,
         didBowl: bowling?.didBowl || (bowling?.overs > 0)
@@ -1278,46 +1166,24 @@ const savePlayerMatchStats = async (req, res, next) => {
       updatedAt: new Date()
     };
 
-    // Calculate fantasy points if not manually set
     if (isManualPoints && fantasyPoints !== undefined) {
       statsData.fantasyPoints = fantasyPoints;
     } else {
-      // Auto-calculate points from stats
       const playerStats = {
-        batting: {
-          runs: statsData.batting.runs,
-          fours: statsData.batting.fours,
-          sixes: statsData.batting.sixes,
-          ballsFaced: statsData.batting.ballsFaced,
-          isOut: statsData.batting.isOut
-        },
-        bowling: {
-          wickets: statsData.bowling.wickets,
-          overs: statsData.bowling.overs,
-          runsConceded: statsData.bowling.runsConceded,
-          maidens: statsData.bowling.maidens
-        },
-        fielding: {
-          catches: statsData.fielding.catches,
-          stumpings: statsData.fielding.stumpings,
-          runOutsDirect: statsData.fielding.runOuts,
-          runOutsIndirect: statsData.fielding.runOutAssists
-        }
+        batting: { runs: statsData.batting.runs, fours: statsData.batting.fours, sixes: statsData.batting.sixes, ballsFaced: statsData.batting.ballsFaced, isOut: statsData.batting.isOut },
+        bowling: { wickets: statsData.bowling.wickets, overs: statsData.bowling.overs, runsConceded: statsData.bowling.runsConceded, maidens: statsData.bowling.maidens },
+        fielding: { catches: statsData.fielding.catches, stumpings: statsData.fielding.stumpings, runOutsDirect: statsData.fielding.runOuts, runOutsIndirect: statsData.fielding.runOutAssists }
       };
       statsData.fantasyPoints = scoringService.calculatePlayerPoints(playerStats);
     }
 
-    // Upsert the stats
     const result = await PlayerMatchStats.findOneAndUpdate(
       { matchId, playerId },
       statsData,
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    res.json({
-      success: true,
-      data: result
-    });
+    res.json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
@@ -1337,9 +1203,7 @@ const bulkSavePlayerStats = async (req, res, next) => {
     }
 
     const match = await Match.findById(matchId);
-    if (!match) {
-      return next(new ApiError(404, 'Match not found'));
-    }
+    if (!match) return next(new ApiError(404, 'Match not found'));
 
     const results = { saved: 0, errors: [] };
 
@@ -1347,10 +1211,7 @@ const bulkSavePlayerStats = async (req, res, next) => {
       try {
         const { playerId, batting, bowling, fielding, fantasyPoints, isManualPoints } = playerData;
 
-        if (!playerId) {
-          results.errors.push({ error: 'Missing playerId' });
-          continue;
-        }
+        if (!playerId) { results.errors.push({ error: 'Missing playerId' }); continue; }
 
         const statsData = {
           matchId,
@@ -1361,9 +1222,7 @@ const bulkSavePlayerStats = async (req, res, next) => {
             fours: batting?.fours || 0,
             sixes: batting?.sixes || 0,
             dots: batting?.dots || 0,
-            strikeRate: batting?.ballsFaced > 0
-              ? ((batting?.runs || 0) / batting.ballsFaced * 100).toFixed(2)
-              : 0,
+            strikeRate: batting?.ballsFaced > 0 ? ((batting?.runs || 0) / batting.ballsFaced * 100).toFixed(2) : 0,
             isOut: batting?.isOut || false,
             dismissalType: batting?.dismissalType || '',
             didBat: batting?.didBat || (batting?.runs > 0 || batting?.ballsFaced > 0)
@@ -1374,9 +1233,7 @@ const bulkSavePlayerStats = async (req, res, next) => {
             runsConceded: bowling?.runsConceded || 0,
             wickets: bowling?.wickets || 0,
             dots: bowling?.dots || 0,
-            economy: bowling?.overs > 0
-              ? ((bowling?.runsConceded || 0) / bowling.overs).toFixed(2)
-              : 0,
+            economy: bowling?.overs > 0 ? ((bowling?.runsConceded || 0) / bowling.overs).toFixed(2) : 0,
             wides: bowling?.wides || 0,
             noBalls: bowling?.noBalls || 0,
             didBowl: bowling?.didBowl || (bowling?.overs > 0)
@@ -1391,44 +1248,25 @@ const bulkSavePlayerStats = async (req, res, next) => {
           updatedAt: new Date()
         };
 
-        // Calculate or use manual points
         if (isManualPoints && fantasyPoints !== undefined) {
           statsData.fantasyPoints = fantasyPoints;
         } else {
           const playerStats = {
             batting: statsData.batting,
-            bowling: {
-              wickets: statsData.bowling.wickets,
-              overs: statsData.bowling.overs,
-              runsConceded: statsData.bowling.runsConceded,
-              maidens: statsData.bowling.maidens
-            },
-            fielding: {
-              catches: statsData.fielding.catches,
-              stumpings: statsData.fielding.stumpings,
-              runOutsDirect: statsData.fielding.runOuts,
-              runOutsIndirect: statsData.fielding.runOutAssists
-            }
+            bowling: { wickets: statsData.bowling.wickets, overs: statsData.bowling.overs, runsConceded: statsData.bowling.runsConceded, maidens: statsData.bowling.maidens },
+            fielding: { catches: statsData.fielding.catches, stumpings: statsData.fielding.stumpings, runOutsDirect: statsData.fielding.runOuts, runOutsIndirect: statsData.fielding.runOutAssists }
           };
           statsData.fantasyPoints = scoringService.calculatePlayerPoints(playerStats);
         }
 
-        await PlayerMatchStats.findOneAndUpdate(
-          { matchId, playerId },
-          statsData,
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
-
+        await PlayerMatchStats.findOneAndUpdate({ matchId, playerId }, statsData, { upsert: true, new: true, setDefaultsOnInsert: true });
         results.saved++;
       } catch (err) {
         results.errors.push({ playerId: playerData.playerId, error: err.message });
       }
     }
 
-    res.json({
-      success: true,
-      data: results
-    });
+    res.json({ success: true, data: results });
   } catch (error) {
     next(error);
   }
@@ -1443,27 +1281,13 @@ const getMatchScorecard = async (req, res, next) => {
     const { matchId } = req.params;
 
     const match = await Match.findById(matchId);
-    if (!match) {
-      return next(new ApiError(404, 'Match not found'));
-    }
+    if (!match) return next(new ApiError(404, 'Match not found'));
 
     const stats = await PlayerMatchStats.find({ matchId })
       .populate('playerId', 'name shortName team role')
       .sort({ 'batting.runs': -1 });
 
-    // Calculate match summary
-    const summary = {
-      totalRuns: 0,
-      totalWickets: 0,
-      totalFours: 0,
-      totalSixes: 0,
-      mostRuns: null,
-      mostWickets: null,
-      mostSixes: null,
-      mostFours: null,
-      fiftiesCount: 0
-    };
-
+    const summary = { totalRuns: 0, totalWickets: 0, totalFours: 0, totalSixes: 0, mostRuns: null, mostWickets: null, mostSixes: null, mostFours: null, fiftiesCount: 0 };
     let maxRuns = 0, maxWickets = 0, maxSixes = 0, maxFours = 0;
 
     stats.forEach(s => {
@@ -1471,37 +1295,17 @@ const getMatchScorecard = async (req, res, next) => {
       summary.totalWickets += s.bowling.wickets || 0;
       summary.totalFours += s.batting.fours || 0;
       summary.totalSixes += s.batting.sixes || 0;
-
       if (s.batting.runs >= 50) summary.fiftiesCount++;
-
-      if (s.batting.runs > maxRuns) {
-        maxRuns = s.batting.runs;
-        summary.mostRuns = { playerId: s.playerId._id, name: s.playerId.name, value: s.batting.runs };
-      }
-      if (s.bowling.wickets > maxWickets) {
-        maxWickets = s.bowling.wickets;
-        summary.mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.bowling.wickets };
-      }
-      if (s.batting.sixes > maxSixes) {
-        maxSixes = s.batting.sixes;
-        summary.mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.sixes };
-      }
-      if (s.batting.fours > maxFours) {
-        maxFours = s.batting.fours;
-        summary.mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.fours };
-      }
+      if (s.batting.runs > maxRuns) { maxRuns = s.batting.runs; summary.mostRuns = { playerId: s.playerId._id, name: s.playerId.name, value: s.batting.runs }; }
+      if (s.bowling.wickets > maxWickets) { maxWickets = s.bowling.wickets; summary.mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.bowling.wickets }; }
+      if (s.batting.sixes > maxSixes) { maxSixes = s.batting.sixes; summary.mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.sixes }; }
+      if (s.batting.fours > maxFours) { maxFours = s.batting.fours; summary.mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.fours }; }
     });
 
     res.json({
       success: true,
       data: {
-        match: {
-          _id: match._id,
-          team1: match.team1,
-          team2: match.team2,
-          status: match.status,
-          statsSnapshot: match.statsSnapshot
-        },
+        match: { _id: match._id, team1: match.team1, team2: match.team2, status: match.status, statsSnapshot: match.statsSnapshot },
         stats,
         summary
       }
@@ -1520,20 +1324,12 @@ const calculatePointsFromScorecard = async (req, res, next) => {
     const { matchId } = req.params;
     const { updateMatchStats } = req.body;
 
-    // Use .lean() to get a plain JS object — avoids Mongoose mutation issues
     const matchRaw = await Match.findById(matchId).lean();
-    if (!matchRaw) {
-      return next(new ApiError(404, 'Match not found'));
-    }
+    if (!matchRaw) return next(new ApiError(404, 'Match not found'));
 
-    // Get all player stats for this match
     const playerStats = await PlayerMatchStats.find({ matchId });
+    if (playerStats.length === 0) return next(new ApiError(400, 'No player stats found. Enter scorecard first.'));
 
-    if (playerStats.length === 0) {
-      return next(new ApiError(400, 'No player stats found. Enter scorecard first.'));
-    }
-
-    // Create player points map from stats
     const playerPointsMap = {};
     playerStats.forEach(s => {
       playerPointsMap[s.playerId.toString()] = s.fantasyPoints || 0;
@@ -1543,10 +1339,8 @@ const calculatePointsFromScorecard = async (req, res, next) => {
     console.log('PlayerMatchStats count:', playerStats.length);
     console.log('PlayerPointsMap:', JSON.stringify(playerPointsMap, null, 2));
 
-    // Update match stats snapshot if requested
     if (updateMatchStats) {
-      const populatedStats = await PlayerMatchStats.find({ matchId })
-        .populate('playerId', 'name');
+      const populatedStats = await PlayerMatchStats.find({ matchId }).populate('playerId', 'name');
 
       let mostSixes = null, mostFours = null, mostWickets = null;
       let fiftiesCount = 0;
@@ -1554,19 +1348,9 @@ const calculatePointsFromScorecard = async (req, res, next) => {
 
       populatedStats.forEach(s => {
         if (s.batting.runs >= 50) fiftiesCount++;
-
-        if ((s.batting.sixes || 0) > maxSixes) {
-          maxSixes = s.batting.sixes;
-          mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.sixes };
-        }
-        if ((s.batting.fours || 0) > maxFours) {
-          maxFours = s.batting.fours;
-          mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.fours };
-        }
-        if ((s.bowling.wickets || 0) > maxWickets) {
-          maxWickets = s.bowling.wickets;
-          mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.bowling.wickets };
-        }
+        if ((s.batting.sixes || 0) > maxSixes) { maxSixes = s.batting.sixes; mostSixes = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.sixes }; }
+        if ((s.batting.fours || 0) > maxFours) { maxFours = s.batting.fours; mostFours = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.batting.fours }; }
+        if ((s.bowling.wickets || 0) > maxWickets) { maxWickets = s.bowling.wickets; mostWickets = { playerId: s.playerId._id, playerName: s.playerId.name, count: s.bowling.wickets }; }
       });
 
       const parseScore = (scoreStr) => {
@@ -1577,7 +1361,6 @@ const calculatePointsFromScorecard = async (req, res, next) => {
       const totalScore = parseScore(matchRaw.result?.team1Score) + parseScore(matchRaw.result?.team2Score);
       const powerplayScore = Math.round(totalScore * 0.3);
 
-      // Read existing bonus values from the lean (plain JS) object — no Mongoose mutation
       const existingSnap = matchRaw.statsSnapshot || {};
 
       const newSnapshot = {
@@ -1591,18 +1374,17 @@ const calculatePointsFromScorecard = async (req, res, next) => {
         indianTeamCatches: existingSnap.indianTeamCatches ?? null,
         indiaScoreAbove230: existingSnap.indiaScoreAbove230 ?? null,
         manOfMatch: existingSnap.manOfMatch ?? null,
-        anyTeamAllOut: existingSnap.anyTeamAllOut ?? null
+        anyTeamAllOut: existingSnap.anyTeamAllOut ?? null,
+        // ── NEW ── preserve existing lastPlayerDismissed
+        lastPlayerDismissed: existingSnap.lastPlayerDismissed ?? null
       };
 
-      // Use findByIdAndUpdate instead of match.save() to avoid Mongoose cast errors
       await Match.findByIdAndUpdate(matchId, { $set: { statsSnapshot: newSnapshot } });
     }
 
-    // Re-fetch match fresh after potential update (as Mongoose doc for later use)
     const match = await Match.findById(matchId);
 
-    const fantasyTeams = await FantasyTeam.find({ matchId })
-      .populate('players.playerId', 'name');
+    const fantasyTeams = await FantasyTeam.find({ matchId }).populate('players.playerId', 'name');
 
     console.log('Fantasy teams found:', fantasyTeams.length);
 
@@ -1628,19 +1410,11 @@ const calculatePointsFromScorecard = async (req, res, next) => {
         const totalPoints = scoringService.calculateFantasyTeamPoints(team, playerPointsMap);
         console.log('  => Calculated totalPoints:', totalPoints);
 
-        await FantasyTeam.findByIdAndUpdate(team._id, {
-          fantasyPoints: totalPoints,
-          isLocked: true
-        });
-
+        await FantasyTeam.findByIdAndUpdate(team._id, { fantasyPoints: totalPoints, isLocked: true });
         results.teamsUpdated++;
       } catch (err) {
         console.error('Error calculating team points:', err);
-        results.errors.push({
-          teamId: team._id,
-          userId: team.userId,
-          error: err.message
-        });
+        results.errors.push({ teamId: team._id, userId: team.userId, error: err.message });
       }
     }
 
@@ -1656,39 +1430,19 @@ const calculatePointsFromScorecard = async (req, res, next) => {
 
           const updatedPredictions = { ...prediction.predictions.toObject() };
 
-          if (predResults.totalScore) {
-            updatedPredictions.totalScore = { ...updatedPredictions.totalScore, pointsEarned: predResults.totalScore.points, isCorrect: predResults.totalScore.isCorrect, actualValue: match.statsSnapshot.totalScore };
-          }
-          if (predResults.mostSixes) {
-            updatedPredictions.mostSixes = { ...updatedPredictions.mostSixes, pointsEarned: predResults.mostSixes.points, isCorrect: predResults.mostSixes.isCorrect, actualValue: match.statsSnapshot.mostSixes?.playerId, actualPlayerName: match.statsSnapshot.mostSixes?.playerName };
-          }
-          if (predResults.mostFours) {
-            updatedPredictions.mostFours = { ...updatedPredictions.mostFours, pointsEarned: predResults.mostFours.points, isCorrect: predResults.mostFours.isCorrect, actualValue: match.statsSnapshot.mostFours?.playerId, actualPlayerName: match.statsSnapshot.mostFours?.playerName };
-          }
-          if (predResults.mostWickets) {
-            updatedPredictions.mostWickets = { ...updatedPredictions.mostWickets, pointsEarned: predResults.mostWickets.points, isCorrect: predResults.mostWickets.isCorrect, actualValue: match.statsSnapshot.mostWickets?.playerId, actualPlayerName: match.statsSnapshot.mostWickets?.playerName };
-          }
-          if (predResults.powerplayScore) {
-            updatedPredictions.powerplayScore = { ...updatedPredictions.powerplayScore, pointsEarned: predResults.powerplayScore.points, isCorrect: predResults.powerplayScore.isCorrect, actualValue: match.statsSnapshot.powerplayScore };
-          }
-          if (predResults.fiftiesCount) {
-            updatedPredictions.fiftiesCount = { ...updatedPredictions.fiftiesCount, pointsEarned: predResults.fiftiesCount.points, isCorrect: predResults.fiftiesCount.isCorrect, actualValue: match.statsSnapshot.fiftiesCount };
-          }
-          if (predResults.abhishekSharmaScore) {
-            updatedPredictions.abhishekSharmaScore = { ...updatedPredictions.abhishekSharmaScore, pointsEarned: predResults.abhishekSharmaScore.points, isCorrect: predResults.abhishekSharmaScore.isCorrect, actualValue: match.statsSnapshot.abhishekSharmaScore };
-          }
-          if (predResults.indianTeamCatches) {
-            updatedPredictions.indianTeamCatches = { ...updatedPredictions.indianTeamCatches, pointsEarned: predResults.indianTeamCatches.points, isCorrect: predResults.indianTeamCatches.isCorrect, actualValue: match.statsSnapshot.indianTeamCatches };
-          }
-          if (predResults.indiaScoreAbove230) {
-            updatedPredictions.indiaScoreAbove230 = { ...updatedPredictions.indiaScoreAbove230, pointsEarned: predResults.indiaScoreAbove230.points, isCorrect: predResults.indiaScoreAbove230.isCorrect, actualValue: match.statsSnapshot.indiaScoreAbove230 };
-          }
-          if (predResults.manOfMatch) {
-            updatedPredictions.manOfMatch = { ...updatedPredictions.manOfMatch, pointsEarned: predResults.manOfMatch.points, isCorrect: predResults.manOfMatch.isCorrect, actualValue: match.statsSnapshot.manOfMatch?.playerId, actualPlayerName: match.statsSnapshot.manOfMatch?.playerName };
-          }
-          if (predResults.anyTeamAllOut) {
-            updatedPredictions.anyTeamAllOut = { ...updatedPredictions.anyTeamAllOut, pointsEarned: predResults.anyTeamAllOut.points, isCorrect: predResults.anyTeamAllOut.isCorrect, actualValue: match.statsSnapshot.anyTeamAllOut };
-          }
+          if (predResults.totalScore) { updatedPredictions.totalScore = { ...updatedPredictions.totalScore, pointsEarned: predResults.totalScore.points, isCorrect: predResults.totalScore.isCorrect, actualValue: match.statsSnapshot.totalScore }; }
+          if (predResults.mostSixes) { updatedPredictions.mostSixes = { ...updatedPredictions.mostSixes, pointsEarned: predResults.mostSixes.points, isCorrect: predResults.mostSixes.isCorrect, actualValue: match.statsSnapshot.mostSixes?.playerId, actualPlayerName: match.statsSnapshot.mostSixes?.playerName }; }
+          if (predResults.mostFours) { updatedPredictions.mostFours = { ...updatedPredictions.mostFours, pointsEarned: predResults.mostFours.points, isCorrect: predResults.mostFours.isCorrect, actualValue: match.statsSnapshot.mostFours?.playerId, actualPlayerName: match.statsSnapshot.mostFours?.playerName }; }
+          if (predResults.mostWickets) { updatedPredictions.mostWickets = { ...updatedPredictions.mostWickets, pointsEarned: predResults.mostWickets.points, isCorrect: predResults.mostWickets.isCorrect, actualValue: match.statsSnapshot.mostWickets?.playerId, actualPlayerName: match.statsSnapshot.mostWickets?.playerName }; }
+          if (predResults.powerplayScore) { updatedPredictions.powerplayScore = { ...updatedPredictions.powerplayScore, pointsEarned: predResults.powerplayScore.points, isCorrect: predResults.powerplayScore.isCorrect, actualValue: match.statsSnapshot.powerplayScore }; }
+          if (predResults.fiftiesCount) { updatedPredictions.fiftiesCount = { ...updatedPredictions.fiftiesCount, pointsEarned: predResults.fiftiesCount.points, isCorrect: predResults.fiftiesCount.isCorrect, actualValue: match.statsSnapshot.fiftiesCount }; }
+          if (predResults.abhishekSharmaScore) { updatedPredictions.abhishekSharmaScore = { ...updatedPredictions.abhishekSharmaScore, pointsEarned: predResults.abhishekSharmaScore.points, isCorrect: predResults.abhishekSharmaScore.isCorrect, actualValue: match.statsSnapshot.abhishekSharmaScore }; }
+          if (predResults.indianTeamCatches) { updatedPredictions.indianTeamCatches = { ...updatedPredictions.indianTeamCatches, pointsEarned: predResults.indianTeamCatches.points, isCorrect: predResults.indianTeamCatches.isCorrect, actualValue: match.statsSnapshot.indianTeamCatches }; }
+          if (predResults.indiaScoreAbove230) { updatedPredictions.indiaScoreAbove230 = { ...updatedPredictions.indiaScoreAbove230, pointsEarned: predResults.indiaScoreAbove230.points, isCorrect: predResults.indiaScoreAbove230.isCorrect, actualValue: match.statsSnapshot.indiaScoreAbove230 }; }
+          if (predResults.manOfMatch) { updatedPredictions.manOfMatch = { ...updatedPredictions.manOfMatch, pointsEarned: predResults.manOfMatch.points, isCorrect: predResults.manOfMatch.isCorrect, actualValue: match.statsSnapshot.manOfMatch?.playerId, actualPlayerName: match.statsSnapshot.manOfMatch?.playerName }; }
+          if (predResults.anyTeamAllOut) { updatedPredictions.anyTeamAllOut = { ...updatedPredictions.anyTeamAllOut, pointsEarned: predResults.anyTeamAllOut.points, isCorrect: predResults.anyTeamAllOut.isCorrect, actualValue: match.statsSnapshot.anyTeamAllOut }; }
+          // ── NEW ──
+          if (predResults.lastPlayerDismissed) { updatedPredictions.lastPlayerDismissed = { ...updatedPredictions.lastPlayerDismissed, pointsEarned: predResults.lastPlayerDismissed.points, isCorrect: predResults.lastPlayerDismissed.isCorrect, actualValue: match.statsSnapshot.lastPlayerDismissed?.playerId, actualPlayerName: match.statsSnapshot.lastPlayerDismissed?.playerName }; }
 
           await Prediction.findByIdAndUpdate(prediction._id, {
             predictions: updatedPredictions,
@@ -1700,10 +1454,7 @@ const calculatePointsFromScorecard = async (req, res, next) => {
           const totalPredictions = Object.keys(predResults).length;
 
           await User.findByIdAndUpdate(prediction.userId, {
-            $inc: {
-              'stats.predictionsCorrect': correctCount,
-              'stats.predictionsTotal': totalPredictions
-            }
+            $inc: { 'stats.predictionsCorrect': correctCount, 'stats.predictionsTotal': totalPredictions }
           });
         } catch (err) {
           console.error('Error scoring prediction:', err);
@@ -1762,45 +1513,45 @@ const updateMatchStatsSnapshot = async (req, res, next) => {
     const {
       totalScore, mostSixes, mostFours, mostWickets, powerplayScore, fiftiesCount,
       abhishekSharmaScore, indianTeamCatches, indiaScoreAbove230, manOfMatch, anyTeamAllOut,
+      lastPlayerDismissed,  // ── NEW ──
       result
     } = req.body;
 
     const match = await Match.findById(matchId);
     if (!match) {
       return next(new ApiError(404, 'Match not found'));
-      
     }
 
-    // Update stats snapshot (preserve existing values when not provided)
-   // Read ALL existing values BEFORE overwriting statsSnapshot
-const existingTotalScore = match.statsSnapshot?.totalScore || 0;
-const existingMostSixes = match.statsSnapshot?.mostSixes ?? null;
-const existingMostFours = match.statsSnapshot?.mostFours ?? null;
-const existingMostWickets = match.statsSnapshot?.mostWickets ?? null;
-const existingPowerplayScore = match.statsSnapshot?.powerplayScore || 0;
-const existingFiftiesCount = match.statsSnapshot?.fiftiesCount || 0;
-const existingAbhishekSharmaScore = match.statsSnapshot?.abhishekSharmaScore ?? null;
-const existingIndianTeamCatches = match.statsSnapshot?.indianTeamCatches ?? null;
-const existingIndiaScoreAbove230 = match.statsSnapshot?.indiaScoreAbove230 ?? null;
-const existingManOfMatch = match.statsSnapshot?.manOfMatch ?? null;
-const existingAnyTeamAllOut = match.statsSnapshot?.anyTeamAllOut ?? null;
+    // Read ALL existing values BEFORE overwriting statsSnapshot
+    const existingTotalScore = match.statsSnapshot?.totalScore || 0;
+    const existingMostSixes = match.statsSnapshot?.mostSixes ?? null;
+    const existingMostFours = match.statsSnapshot?.mostFours ?? null;
+    const existingMostWickets = match.statsSnapshot?.mostWickets ?? null;
+    const existingPowerplayScore = match.statsSnapshot?.powerplayScore || 0;
+    const existingFiftiesCount = match.statsSnapshot?.fiftiesCount || 0;
+    const existingAbhishekSharmaScore = match.statsSnapshot?.abhishekSharmaScore ?? null;
+    const existingIndianTeamCatches = match.statsSnapshot?.indianTeamCatches ?? null;
+    const existingIndiaScoreAbove230 = match.statsSnapshot?.indiaScoreAbove230 ?? null;
+    const existingManOfMatch = match.statsSnapshot?.manOfMatch ?? null;
+    const existingAnyTeamAllOut = match.statsSnapshot?.anyTeamAllOut ?? null;
+    const existingLastPlayerDismissed = match.statsSnapshot?.lastPlayerDismissed ?? null;  // ── NEW ──
 
-match.statsSnapshot = {
-  totalScore: totalScore !== undefined ? totalScore : existingTotalScore,
-  mostSixes: mostSixes || existingMostSixes,
-  mostFours: mostFours || existingMostFours,
-  mostWickets: mostWickets || existingMostWickets,
-  powerplayScore: powerplayScore !== undefined ? powerplayScore : existingPowerplayScore,
-  fiftiesCount: fiftiesCount !== undefined ? fiftiesCount : existingFiftiesCount,
-  abhishekSharmaScore: abhishekSharmaScore !== undefined ? abhishekSharmaScore : existingAbhishekSharmaScore,
-  indianTeamCatches: indianTeamCatches !== undefined ? indianTeamCatches : existingIndianTeamCatches,
-  indiaScoreAbove230: indiaScoreAbove230 !== undefined ? indiaScoreAbove230 : existingIndiaScoreAbove230,
-  manOfMatch: manOfMatch || existingManOfMatch,
-  anyTeamAllOut: anyTeamAllOut !== undefined ? anyTeamAllOut : existingAnyTeamAllOut
-};
-match.markModified('statsSnapshot');
+    match.statsSnapshot = {
+      totalScore: totalScore !== undefined ? totalScore : existingTotalScore,
+      mostSixes: mostSixes || existingMostSixes,
+      mostFours: mostFours || existingMostFours,
+      mostWickets: mostWickets || existingMostWickets,
+      powerplayScore: powerplayScore !== undefined ? powerplayScore : existingPowerplayScore,
+      fiftiesCount: fiftiesCount !== undefined ? fiftiesCount : existingFiftiesCount,
+      abhishekSharmaScore: abhishekSharmaScore !== undefined ? abhishekSharmaScore : existingAbhishekSharmaScore,
+      indianTeamCatches: indianTeamCatches !== undefined ? indianTeamCatches : existingIndianTeamCatches,
+      indiaScoreAbove230: indiaScoreAbove230 !== undefined ? indiaScoreAbove230 : existingIndiaScoreAbove230,
+      manOfMatch: manOfMatch || existingManOfMatch,
+      anyTeamAllOut: anyTeamAllOut !== undefined ? anyTeamAllOut : existingAnyTeamAllOut,
+      lastPlayerDismissed: lastPlayerDismissed || existingLastPlayerDismissed  // ── NEW ──
+    };
+    match.markModified('statsSnapshot');
 
-    // Update result if provided
     if (result) {
       match.result = {
         winner: result.winner || '',
@@ -1812,10 +1563,7 @@ match.markModified('statsSnapshot');
 
     await match.save();
 
-    res.json({
-      success: true,
-      data: match
-    });
+    res.json({ success: true, data: match });
   } catch (error) {
     next(error);
   }
@@ -1823,8 +1571,6 @@ match.markModified('statsSnapshot');
 
 /**
  * Calculate bonus prediction points only (without touching fantasy team points)
- * Adds points for the 5 bonus questions on top of existing prediction points.
- * Idempotent: subtracts old bonus points before adding new ones.
  * POST /api/admin/matches/:matchId/calculate-bonus-predictions
  */
 const calculateBonusPredictionPoints = async (req, res, next) => {
@@ -1837,7 +1583,6 @@ const calculateBonusPredictionPoints = async (req, res, next) => {
 
     const snap = match.statsSnapshot;
 
-    // Inline helpers
     const _hasAnswer = (field) => field && field.answer !== undefined && field.answer !== null && field.answer !== '';
     const _hasActual = (v) => v !== undefined && v !== null && v !== '';
 
@@ -1849,9 +1594,12 @@ const calculateBonusPredictionPoints = async (req, res, next) => {
         const predObj = prediction.predictions.toObject ? prediction.predictions.toObject() : prediction.predictions;
         const updatedPredictions = { ...predObj };
 
-        // Subtract old bonus points (in case this was run before)
+        // Subtract old bonus points (idempotent — remove previous run's values)
         let oldBonusPoints = 0;
-        const bonusFieldNames = ['abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut'];
+        const bonusFieldNames = [
+          'abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230',
+          'manOfMatch', 'anyTeamAllOut', 'lastPlayerDismissed'  // ── NEW ──
+        ];
         for (const f of bonusFieldNames) {
           oldBonusPoints += predObj[f]?.pointsEarned || 0;
         }
@@ -1901,6 +1649,14 @@ const calculateBonusPredictionPoints = async (req, res, next) => {
           updatedPredictions.anyTeamAllOut = { ...predObj.anyTeamAllOut, pointsEarned: pts, isCorrect, actualValue: snap.anyTeamAllOut };
         }
 
+        // ── NEW ── lastPlayerDismissed
+        if (_hasAnswer(predObj.lastPlayerDismissed) && _hasActual(snap.lastPlayerDismissed?.playerId)) {
+          const isCorrect = predObj.lastPlayerDismissed.answer?.toString() === snap.lastPlayerDismissed.playerId?.toString();
+          const pts = isCorrect ? 150 : -75;
+          newBonusPoints += pts;
+          updatedPredictions.lastPlayerDismissed = { ...predObj.lastPlayerDismissed, pointsEarned: pts, isCorrect, actualValue: snap.lastPlayerDismissed.playerId, actualPlayerName: snap.lastPlayerDismissed.playerName };
+        }
+
         const pointsDelta = newBonusPoints - oldBonusPoints;
 
         await Prediction.findByIdAndUpdate(prediction._id, {
@@ -1908,13 +1664,11 @@ const calculateBonusPredictionPoints = async (req, res, next) => {
           $inc: { totalPredictionPoints: pointsDelta }
         });
 
-        // Update user total fantasy points by the delta
         if (pointsDelta !== 0) {
           await User.findByIdAndUpdate(prediction.userId, {
             $inc: { 'stats.totalFantasyPoints': pointsDelta }
           });
 
-          // Update TeamMatchPerformance so permanent team totals stay accurate
           const userDoc = await User.findById(prediction.userId).select('permanentTeamId').lean();
           if (userDoc?.permanentTeamId) {
             const teamPerf = await TeamMatchPerformance.findOne({
@@ -1932,7 +1686,6 @@ const calculateBonusPredictionPoints = async (req, res, next) => {
                 teamPerf.markModified('memberPerformances');
                 await teamPerf.save();
               }
-              // Update PermanentTeam overall stats
               await PermanentTeam.findByIdAndUpdate(userDoc.permanentTeamId, {
                 $inc: { 'stats.totalPoints': pointsDelta }
               });
@@ -1946,7 +1699,6 @@ const calculateBonusPredictionPoints = async (req, res, next) => {
       }
     }
 
-    // Recalculate best ranks
     await updateUserBestRanks();
 
     res.json({
@@ -1970,7 +1722,6 @@ const createPlayer = async (req, res, next) => {
       return next(new ApiError(400, 'name, team, and role are required'));
     }
 
-    // Validate role
     const validRoles = ['Batsman', 'Bowler', 'All-Rounder', 'Wicket-Keeper'];
     if (!validRoles.includes(role)) {
       return next(new ApiError(400, `Invalid role. Must be one of: ${validRoles.join(', ')}`));
@@ -1988,10 +1739,7 @@ const createPlayer = async (req, res, next) => {
       externalPlayerId: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     });
 
-    res.status(201).json({
-      success: true,
-      data: player
-    });
+    res.status(201).json({ success: true, data: player });
   } catch (error) {
     next(error);
   }
@@ -2015,29 +1763,18 @@ const updatePlayer = async (req, res, next) => {
     if (bowlingStyle !== undefined) updateData.bowlingStyle = bowlingStyle;
     if (isActive !== undefined) updateData.isActive = isActive;
 
-    const player = await Player.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true }
-    );
+    const player = await Player.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!player) return next(new ApiError(404, 'Player not found'));
 
-    if (!player) {
-      return next(new ApiError(404, 'Player not found'));
-    }
-
-    res.json({
-      success: true,
-      data: player
-    });
+    res.json({ success: true, data: player });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Recalculate all user stats from fantasy teams, predictions, and team bonuses
+ * Recalculate all user stats
  * POST /api/admin/recalculate-user-stats
- * Use this to sync user stats if they are out of sync
  */
 const recalculateAllUserStats = async (req, res, next) => {
   try {
@@ -2047,16 +1784,13 @@ const recalculateAllUserStats = async (req, res, next) => {
 
     for (const user of users) {
       try {
-        // Get all fantasy teams for this user
         const userTeams = await FantasyTeam.find({ userId: user._id }).populate('matchId', 'status');
         const totalFantasyPoints = userTeams.reduce((sum, t) => sum + (t.fantasyPoints || 0), 0);
         const matchesPlayed = userTeams.filter(t => t.fantasyPoints > 0).length;
 
-        // Get all predictions for this user
         const userPredictions = await Prediction.find({ userId: user._id, isScored: true });
         const totalPredictionPoints = userPredictions.reduce((sum, p) => sum + (p.totalPredictionPoints || 0), 0);
 
-        // Calculate team bonus points from TeamMatchPerformance records
         let totalTeamBonusPoints = 0;
         let teamMatchesPlayed = 0;
         const teamPerformances = await TeamMatchPerformance.find({
@@ -2064,9 +1798,7 @@ const recalculateAllUserStats = async (req, res, next) => {
           status: 'completed'
         });
         for (const perf of teamPerformances) {
-          const memberPerf = perf.memberPerformances.find(
-            mp => mp.userId.toString() === user._id.toString()
-          );
+          const memberPerf = perf.memberPerformances.find(mp => mp.userId.toString() === user._id.toString());
           if (memberPerf) {
             totalTeamBonusPoints += memberPerf.bonusPoints || 0;
             teamMatchesPlayed++;
@@ -2076,7 +1808,7 @@ const recalculateAllUserStats = async (req, res, next) => {
         await User.findByIdAndUpdate(user._id, {
           'stats.totalFantasyPoints': totalFantasyPoints + totalPredictionPoints + totalTeamBonusPoints,
           'stats.matchesPlayed': matchesPlayed,
-          'stats.bestRank': null, // Reset - will be recalculated below
+          'stats.bestRank': null,
           'teamStats.teamBonusPointsEarned': totalTeamBonusPoints,
           'teamStats.teamMatchesPlayed': teamMatchesPlayed
         });
@@ -2087,22 +1819,17 @@ const recalculateAllUserStats = async (req, res, next) => {
       }
     }
 
-    // Recalculate best ranks based on overall leaderboard positions
     await updateUserBestRanks();
 
-    res.json({
-      success: true,
-      data: results
-    });
+    res.json({ success: true, data: results });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Recalculate all permanent team stats from TeamMatchPerformance records
+ * Recalculate all permanent team stats
  * POST /api/admin/recalculate-team-stats
- * Use this to sync team stats if they are out of sync
  */
 const recalculateAllTeamStats = async (req, res, next) => {
   try {
@@ -2114,41 +1841,25 @@ const recalculateAllTeamStats = async (req, res, next) => {
 
     for (const team of teams) {
       try {
-        // Get all completed team match performances
-        const performances = await TeamMatchPerformance.find({
-          teamId: team._id,
-          status: 'completed'
-        });
+        const performances = await TeamMatchPerformance.find({ teamId: team._id, status: 'completed' });
 
-        // Calculate aggregate stats
-        let totalPoints = 0;
-        let matchesPlayed = 0;
-        let wins = 0;
-        let podiums = 0;
-        let topFives = 0;
-        let bestRank = null;
-        let rankSum = 0;
+        let totalPoints = 0, matchesPlayed = 0, wins = 0, podiums = 0, topFives = 0;
+        let bestRank = null, rankSum = 0;
 
         for (const perf of performances) {
           totalPoints += perf.teamTotalPoints || 0;
-          totalPoints += (perf.bonusAwarded || 0) * 4; // Bonus is per member
+          totalPoints += (perf.bonusAwarded || 0) * 4;
           matchesPlayed++;
-
           if (perf.rank === 1) wins++;
           if (perf.rank <= 3) podiums++;
           if (perf.rank <= 5) topFives++;
-
           if (perf.rank) {
             rankSum += perf.rank;
-            if (bestRank === null || perf.rank < bestRank) {
-              bestRank = perf.rank;
-            }
+            if (bestRank === null || perf.rank < bestRank) bestRank = perf.rank;
           }
         }
 
-        const averageRank = matchesPlayed > 0
-          ? Math.round((rankSum / matchesPlayed) * 10) / 10
-          : null;
+        const averageRank = matchesPlayed > 0 ? Math.round((rankSum / matchesPlayed) * 10) / 10 : null;
 
         await PermanentTeam.findByIdAndUpdate(team._id, {
           'stats.totalPoints': totalPoints,
@@ -2166,17 +1877,14 @@ const recalculateAllTeamStats = async (req, res, next) => {
       }
     }
 
-    res.json({
-      success: true,
-      data: results
-    });
+    res.json({ success: true, data: results });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Trigger team scoring for a specific match (for testing/fixing)
+ * Trigger team scoring for a specific match
  * POST /api/admin/calculate-team-points/:matchId
  */
 const calculateTeamPointsForMatch = async (req, res, next) => {
@@ -2184,17 +1892,11 @@ const calculateTeamPointsForMatch = async (req, res, next) => {
     const { matchId } = req.params;
 
     const match = await Match.findById(matchId);
-    if (!match) {
-      return next(new ApiError(404, 'Match not found'));
-    }
+    if (!match) return next(new ApiError(404, 'Match not found'));
 
-    // Trigger the team scoring process
     await permanentTeamService.completeMatchTeamScoring(matchId);
 
-    res.json({
-      success: true,
-      message: 'Team points calculated and bonuses awarded for match'
-    });
+    res.json({ success: true, message: 'Team points calculated and bonuses awarded for match' });
   } catch (error) {
     next(error);
   }
