@@ -22,7 +22,8 @@ export default function ScorecardEntry({ matchId, onClose }) {
     indianTeamCatches: '',
     indiaScoreAbove230: '',
     manOfMatch: { playerId: '', playerName: '' },
-    anyTeamAllOut: ''
+    anyTeamAllOut: '',
+    lastPlayerDismissed: { playerId: '', playerName: '' }
   })
 
   useEffect(() => {
@@ -52,7 +53,8 @@ export default function ScorecardEntry({ matchId, onClose }) {
           indianTeamCatches: snap.indianTeamCatches !== undefined && snap.indianTeamCatches !== null ? snap.indianTeamCatches : '',
           indiaScoreAbove230: snap.indiaScoreAbove230 || '',
           manOfMatch: snap.manOfMatch ? { playerId: snap.manOfMatch.playerId || '', playerName: snap.manOfMatch.playerName || '' } : { playerId: '', playerName: '' },
-          anyTeamAllOut: snap.anyTeamAllOut || ''
+          anyTeamAllOut: snap.anyTeamAllOut || '',
+          lastPlayerDismissed: snap.lastPlayerDismissed ? { playerId: snap.lastPlayerDismissed.playerId || '', playerName: snap.lastPlayerDismissed.playerName || '' } : { playerId: '', playerName: '' }
         })
       }
 
@@ -205,7 +207,8 @@ export default function ScorecardEntry({ matchId, onClose }) {
         indianTeamCatches: predictionAnswers.indianTeamCatches !== '' ? Number(predictionAnswers.indianTeamCatches) : undefined,
         indiaScoreAbove230: predictionAnswers.indiaScoreAbove230 || undefined,
         manOfMatch: predictionAnswers.manOfMatch.playerId ? predictionAnswers.manOfMatch : undefined,
-        anyTeamAllOut: predictionAnswers.anyTeamAllOut || undefined
+        anyTeamAllOut: predictionAnswers.anyTeamAllOut || undefined,
+        lastPlayerDismissed: predictionAnswers.lastPlayerDismissed.playerId ? predictionAnswers.lastPlayerDismissed : undefined
       })
 
       success('Match stats updated')
@@ -503,6 +506,7 @@ export default function ScorecardEntry({ matchId, onClose }) {
             </select>
           </label>
         </div>
+
         <div className="match-stats-row" style={{ marginTop: '0.75rem' }}>
           <label style={{ flex: '1 1 100%' }}>
             <span>Man of the Match</span>
@@ -514,6 +518,28 @@ export default function ScorecardEntry({ matchId, onClose }) {
                 setPredictionAnswers(prev => ({
                   ...prev,
                   manOfMatch: { playerId: e.target.value, playerName: player?.name || '' }
+                }))
+              }}
+            >
+              <option value="">Not set</option>
+              {[...team1Players, ...team2Players].map(p => (
+                <option key={p._id} value={p._id}>{p.name}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="match-stats-row" style={{ marginTop: '0.75rem' }}>
+          <label style={{ flex: '1 1 100%' }}>
+            <span>Last Player Dismissed (Indian Innings)</span>
+            <select
+              value={predictionAnswers.lastPlayerDismissed.playerId}
+              onChange={(e) => {
+                const allPlayers = [...team1Players, ...team2Players]
+                const player = allPlayers.find(p => p._id === e.target.value)
+                setPredictionAnswers(prev => ({
+                  ...prev,
+                  lastPlayerDismissed: { playerId: e.target.value, playerName: player?.name || '' }
                 }))
               }}
             >
@@ -722,6 +748,18 @@ export default function ScorecardEntry({ matchId, onClose }) {
           color: var(--text-primary);
         }
         .match-stats-row input:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
+        .match-stats-row select {
+          padding: 6px 10px;
+          border: 1px solid var(--border-primary);
+          border-radius: var(--radius-sm);
+          background: var(--bg-secondary);
+          color: var(--text-primary);
+          width: 100%;
+        }
+        .match-stats-row select:focus {
           outline: none;
           border-color: var(--primary);
         }
