@@ -31,7 +31,8 @@ const predictionSchema = new mongoose.Schema({
     indianTeamCatches: predictionAnswerSchema,
     indiaScoreAbove230: predictionAnswerSchema,
     manOfMatch: predictionAnswerSchema,
-    anyTeamAllOut: predictionAnswerSchema
+    anyTeamAllOut: predictionAnswerSchema,
+    lastPlayerDismissed: predictionAnswerSchema
   },
   totalPredictionPoints: {
     type: Number,
