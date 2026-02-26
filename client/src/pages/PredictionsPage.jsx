@@ -23,7 +23,8 @@ export default function PredictionsPage() {
     indianTeamCatches: { answer: '' },
     indiaScoreAbove230: { answer: '' },
     manOfMatch: { answer: '', answerName: '' },
-    anyTeamAllOut: { answer: '' }
+    anyTeamAllOut: { answer: '' },
+    lastPlayerDismissed: { answer: '', answerName: '' }
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -41,7 +42,10 @@ export default function PredictionsPage() {
 
         // Load existing predictions if any
         if (existingRes.data?.predictions) {
-          setPredictions(existingRes.data.predictions)
+          setPredictions(prev => ({
+            ...prev,
+            ...existingRes.data.predictions
+          }))
         }
       } catch (error) {
         showError('Error loading data')
@@ -61,7 +65,7 @@ export default function PredictionsPage() {
 
   const handleSubmit = async () => {
     // Validate at least one field is answered
-    const allFields = ['totalScore', 'mostSixes', 'mostFours', 'mostWickets', 'powerplayScore', 'fiftiesCount', 'abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut']
+    const allFields = ['totalScore', 'mostSixes', 'mostFours', 'mostWickets', 'powerplayScore', 'fiftiesCount', 'abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut', 'lastPlayerDismissed']
     const hasAtLeastOne = allFields.some(f => predictions[f]?.answer !== '' && predictions[f]?.answer !== null && predictions[f]?.answer !== undefined)
     if (!hasAtLeastOne) {
       showError('Please answer at least one prediction question')
@@ -311,6 +315,29 @@ export default function PredictionsPage() {
               <option value="no">No</option>
             </select>
           </div>
+
+          {/* ── NEW ── Last Player Dismissed */}
+          <div className="prediction-item">
+            <label className="form-label">
+              Last player dismissed in Indian innings?
+              <span className="points-badge points-badge--bonus">+150 / -75</span>
+            </label>
+            <select
+              className="form-input"
+              value={predictions.lastPlayerDismissed.answer}
+              onChange={(e) => {
+                const player = allPlayers.find(p => p._id === e.target.value)
+                updatePrediction('lastPlayerDismissed', e.target.value, player?.name || '')
+              }}
+            >
+              <option value="">Skip this question</option>
+              {allPlayers.map(player => (
+                <option key={player._id} value={player._id}>
+                  {player.name} ({player.team})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -336,6 +363,7 @@ export default function PredictionsPage() {
           font-weight: 500;
           color: var(--gray-600);
         }
+
       `}</style>
     </div>
   )
