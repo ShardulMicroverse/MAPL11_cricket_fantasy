@@ -46,7 +46,8 @@ const submitPredictions = async (req, res, next) => {
     // Validate that at least one prediction field is provided
     const allFields = [
       'totalScore', 'mostSixes', 'mostFours', 'mostWickets', 'powerplayScore', 'fiftiesCount',
-      'abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut'
+      'abhishekSharmaScore', 'indianTeamCatches', 'indiaScoreAbove230', 'manOfMatch', 'anyTeamAllOut',
+      'lastPlayerDismissed'
     ];
     const hasAtLeastOne = allFields.some(f => predictions[f]?.answer !== undefined && predictions[f]?.answer !== null && predictions[f]?.answer !== '');
     if (!hasAtLeastOne) {
@@ -88,6 +89,10 @@ const submitPredictions = async (req, res, next) => {
     }
     if (predictions.anyTeamAllOut?.answer !== undefined && predictions.anyTeamAllOut?.answer !== '') {
       predictionData.anyTeamAllOut = { answer: predictions.anyTeamAllOut.answer };
+    }
+    // ── NEW ──
+    if (predictions.lastPlayerDismissed?.answer !== undefined && predictions.lastPlayerDismissed?.answer !== '') {
+      predictionData.lastPlayerDismissed = { answer: predictions.lastPlayerDismissed.answer, answerName: predictions.lastPlayerDismissed.answerName || '' };
     }
 
     // Check for existing prediction
