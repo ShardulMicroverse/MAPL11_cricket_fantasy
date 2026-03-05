@@ -27,7 +27,12 @@ const predictionSchema = new mongoose.Schema({
     mostWickets: predictionAnswerSchema,
     powerplayScore: predictionAnswerSchema,
     fiftiesCount: predictionAnswerSchema,
-    lastPlayerDismissed: predictionAnswerSchema
+    lastPlayerDismissed: predictionAnswerSchema,
+    abhishekSharmaScore: predictionAnswerSchema,
+  indianTeamCatches: predictionAnswerSchema,
+  indiaScoreAbove230: predictionAnswerSchema,
+  manOfMatch: predictionAnswerSchema,
+  anyTeamAllOut: predictionAnswerSchema,
   },
   totalPredictionPoints: {
     type: Number,
