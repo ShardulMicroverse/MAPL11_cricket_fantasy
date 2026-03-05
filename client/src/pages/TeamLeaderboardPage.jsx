@@ -14,6 +14,21 @@ const getInitials = (name) => {
   return name.substring(0, 2).toUpperCase()
 }
 
+// Sort teams: primary = most wins, secondary = most total points
+const sortAndRankTeams = (teams) => {
+  return [...teams]
+    .sort((a, b) => {
+      const winsA = a.stats?.wins || 0
+      const winsB = b.stats?.wins || 0
+      if (winsB !== winsA) return winsB - winsA
+
+      const pointsA = a.stats?.totalPoints || 0
+      const pointsB = b.stats?.totalPoints || 0
+      return pointsB - pointsA
+    })
+    .map((team, index) => ({ ...team, rank: index + 1 }))
+}
+
 export default function TeamLeaderboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -34,9 +49,20 @@ export default function TeamLeaderboardPage() {
         teamService.getPermanentTeamLeaderboard(page, 20),
         teamService.getMyPermanentTeam().catch(() => ({ data: null }))
       ])
-      setTeams(leaderboardRes.data.teams || [])
+
+      // Apply client-side sorting: wins first, then total points
+      const sorted = sortAndRankTeams(leaderboardRes.data.teams || [])
+      setTeams(sorted)
       setPagination(leaderboardRes.data.pagination)
-      setMyTeam(myTeamRes.data)
+
+      // Recalculate rank for myTeam based on sorted order
+      const rawMyTeam = myTeamRes.data
+      if (rawMyTeam) {
+        const myTeamSorted = sorted.find(t => t._id === rawMyTeam._id)
+        setMyTeam(myTeamSorted ? { ...rawMyTeam, rank: myTeamSorted.rank } : rawMyTeam)
+      } else {
+        setMyTeam(null)
+      }
     } catch (err) {
       console.error('Error fetching leaderboard:', err)
     } finally {
@@ -74,6 +100,19 @@ export default function TeamLeaderboardPage() {
         </Link>
       </div>
 
+      {/* Sorting criteria indicator */}
+      <div className="sort-criteria-bar">
+        <span className="sort-label">Ranked by:</span>
+        <span className="sort-primary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Wins
+        </span>
+        <span className="sort-divider">then</span>
+        <span className="sort-secondary">Total Points</span>
+      </div>
+
       {/* My Team Position Card */}
       {myTeam && (
         <Link to="/my-team" className="my-team-position-card">
@@ -85,7 +124,7 @@ export default function TeamLeaderboardPage() {
             <div className="my-team-info">
               <div className="my-team-name">{myTeam.teamName}</div>
               <div className="my-team-stats">
-                {myTeam.stats?.totalPoints || 0} pts | {myTeam.stats?.matchesPlayed || 0} matches
+                {myTeam.stats?.wins || 0}W | {myTeam.stats?.totalPoints || 0} pts | {myTeam.stats?.matchesPlayed || 0} matches
               </div>
             </div>
             <svg className="my-team-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -110,7 +149,7 @@ export default function TeamLeaderboardPage() {
       ) : (
         <>
           <div className="leaderboard-list">
-            {teams.map((team, index) => (
+            {teams.map((team) => (
               <Link
                 key={team._id}
                 to={`/team/${team._id}`}
