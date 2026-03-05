@@ -96,17 +96,15 @@ function FireworksCanvas({ style = {} }) {
   return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 'inherit', ...style }} />
 }
 
-// ─── Top 3 Podium ─────────────────────────────────────────────────────────────
-function TopPodium({ entries, isTeam }) {
-  if (!entries || entries.length === 0) return null
-  const top = entries.slice(0, Math.min(3, entries.length))
-  const [first, second, third] = top
+// ─── Top 2 Podium ─────────────────────────────────────────────────────────────
+function TopPodium({ entries }) {
+  if (!entries || entries.length < 2) return null
+  const [first, second] = entries
 
   const getName = (e) => e?.displayName || e?.teamName || e?.name || 'Unknown'
   const getPoints = (e) => e?.totalPoints || e?.points || 0
 
   const PodiumCard = ({ entry, rank, height, delay, glowColor, crownEmoji }) => {
-    if (!entry) return <div style={{ flex: 1 }} />
     const isTop = rank === 1
     return (
       <div style={{
@@ -115,73 +113,65 @@ function TopPodium({ entries, isTeam }) {
       }}>
         {/* Crown / medal */}
         <div style={{
-          fontSize: isTop ? 28 : 22, marginBottom: 6,
-          filter: `drop-shadow(0 0 8px ${glowColor})`,
+          fontSize: isTop ? 30 : 24, marginBottom: 8,
+          filter: `drop-shadow(0 0 10px ${glowColor})`,
           animation: isTop ? 'crownFloat 2s ease-in-out infinite alternate' : 'none',
         }}>{crownEmoji}</div>
 
         {/* Avatar bubble */}
-        <div style={{ position: 'relative', marginBottom: 8 }}>
+        <div style={{ position: 'relative', marginBottom: 10 }}>
           <div style={{
-            width: isTop ? 72 : 56, height: isTop ? 72 : 56,
+            width: isTop ? 80 : 64, height: isTop ? 80 : 64,
             borderRadius: '50%',
             background: rank === 1
               ? 'linear-gradient(135deg, #FFD700, #FF8C00)'
-              : rank === 2
-              ? 'linear-gradient(135deg, #E8E8E8, #9E9E9E)'
-              : 'linear-gradient(135deg, #CD7F32, #8B4513)',
+              : 'linear-gradient(135deg, #E8E8E8, #9E9E9E)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: isTop ? 22 : 17, fontWeight: 900,
-            color: rank === 1 ? '#3d2800' : rank === 2 ? '#1a1a1a' : '#2d1a00',
-            boxShadow: `0 0 0 ${isTop ? 3 : 2}px ${glowColor}66, 0 0 ${isTop ? 24 : 14}px ${glowColor}55`,
+            fontSize: isTop ? 26 : 20, fontWeight: 900,
+            color: rank === 1 ? '#3d2800' : '#1a1a1a',
+            boxShadow: `0 0 0 ${isTop ? 4 : 3}px ${glowColor}66, 0 0 ${isTop ? 30 : 18}px ${glowColor}55`,
             animation: isTop ? 'avatarGlow 2s ease-in-out infinite alternate' : 'none',
           }}>
             {getInitials(getName(entry))}
           </div>
-          {/* Rank badge */}
           <div style={{
             position: 'absolute', bottom: -4, right: -4,
-            width: 20, height: 20, borderRadius: '50%',
-            background: rank === 1 ? 'linear-gradient(135deg,#FFD700,#FFA500)' : rank === 2 ? 'linear-gradient(135deg,#C0C0C0,#888)' : 'linear-gradient(135deg,#CD7F32,#8B4513)',
+            width: 22, height: 22, borderRadius: '50%',
+            background: rank === 1 ? 'linear-gradient(135deg,#FFD700,#FFA500)' : 'linear-gradient(135deg,#C0C0C0,#888)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 900,
+            fontSize: 11, fontWeight: 900,
             color: rank === 1 ? '#3d2800' : '#fff',
-            border: '2px solid rgba(0,0,0,0.3)',
+            border: '2px solid rgba(0,0,0,0.4)',
           }}>{rank}</div>
         </div>
 
         {/* Name */}
         <div style={{
-          fontSize: isTop ? 13 : 11, fontWeight: 700,
-          color: rank === 1 ? '#FFD700' : rank === 2 ? '#C8C8C8' : '#CD8B4A',
-          textAlign: 'center', maxWidth: 90, lineHeight: 1.2,
-          marginBottom: 4, letterSpacing: '0.02em',
+          fontSize: isTop ? 14 : 12, fontWeight: 700,
+          color: rank === 1 ? '#FFD700' : '#C8C8C8',
+          textAlign: 'center', maxWidth: 110, lineHeight: 1.2,
+          marginBottom: 5, letterSpacing: '0.02em',
           textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', width: '100%',
         }}>{getName(entry)}</div>
 
         {/* Points */}
         <div style={{
-          fontSize: isTop ? 16 : 13, fontWeight: 900,
-          color: 'rgba(255,255,255,0.95)',
-          fontFamily: "'Georgia', serif",
-          marginBottom: 8,
-        }}>{getPoints(entry).toLocaleString()}<span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginLeft: 3 }}>pts</span></div>
+          fontSize: isTop ? 18 : 15, fontWeight: 900,
+          color: 'rgba(255,255,255,0.95)', fontFamily: "'Georgia', serif", marginBottom: 10,
+        }}>{getPoints(entry).toLocaleString()}<span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginLeft: 3 }}>pts</span></div>
 
         {/* Podium block */}
         <div style={{
-          width: '100%', height: height, borderRadius: '10px 10px 0 0',
+          width: '100%', height: height, borderRadius: '12px 12px 0 0',
           background: rank === 1
-            ? 'linear-gradient(180deg, rgba(255,215,0,0.3) 0%, rgba(255,140,0,0.15) 100%)'
-            : rank === 2
-            ? 'linear-gradient(180deg, rgba(200,200,200,0.2) 0%, rgba(150,150,150,0.08) 100%)'
-            : 'linear-gradient(180deg, rgba(205,127,50,0.2) 0%, rgba(139,69,19,0.08) 100%)',
-          border: `1px solid ${glowColor}33`,
-          borderBottom: 'none',
+            ? 'linear-gradient(180deg, rgba(255,215,0,0.28) 0%, rgba(255,140,0,0.12) 100%)'
+            : 'linear-gradient(180deg, rgba(200,200,200,0.18) 0%, rgba(150,150,150,0.06) 100%)',
+          border: `1px solid ${glowColor}33`, borderBottom: 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: `inset 0 2px 12px ${glowColor}22`,
+          boxShadow: `inset 0 2px 16px ${glowColor}22`,
         }}>
-          <div style={{ fontSize: isTop ? 22 : 16, opacity: 0.4 }}>
-            {rank === 1 ? '🏆' : rank === 2 ? '🥈' : '🥉'}
+          <div style={{ fontSize: isTop ? 26 : 20, opacity: 0.35 }}>
+            {rank === 1 ? '🏆' : '🥈'}
           </div>
         </div>
       </div>
@@ -193,10 +183,8 @@ function TopPodium({ entries, isTeam }) {
       position: 'relative', overflow: 'hidden',
       borderRadius: '20px 20px 0 0',
       background: 'linear-gradient(180deg, #0a0f1e 0%, #0d1628 60%, #0a1020 100%)',
-      border: '1px solid rgba(255,215,0,0.12)',
-      borderBottom: 'none',
-      padding: '24px 16px 0',
-      marginBottom: 0,
+      border: '1px solid rgba(255,215,0,0.12)', borderBottom: 'none',
+      padding: '24px 24px 0', marginBottom: 0,
     }}>
       <FireworksCanvas />
 
@@ -216,31 +204,30 @@ function TopPodium({ entries, isTeam }) {
 
       <div style={{ position: 'relative', zIndex: 1 }}>
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{
-            fontFamily: "'Georgia', serif", fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.35em', textTransform: 'uppercase',
-            color: 'rgba(255,215,0,0.6)', marginBottom: 4,
-          }}>🏆 Hall of Fame</div>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <div style={{
             fontFamily: "'Georgia', serif", fontSize: 22, fontWeight: 900,
             background: 'linear-gradient(90deg, #FFD700, #FFA500, #FFD700)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            marginBottom: 4,
           }}>Top Players</div>
+          <div style={{
+            fontSize: 11, color: 'rgba(255,153,0,0.7)',
+            letterSpacing: '0.25em', textTransform: 'uppercase', fontWeight: 600,
+          }}>🏏 One Last Match To Go</div>
         </div>
 
-        {/* Podium layout: 2nd | 1st | 3rd */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, paddingBottom: 0 }}>
-          <PodiumCard entry={second} rank={2} height={60} delay={0.2} glowColor="#C0C0C0" crownEmoji="🥈" />
-          <PodiumCard entry={first}  rank={1} height={90} delay={0.1} glowColor="#FFD700" crownEmoji="👑" />
-          <PodiumCard entry={third}  rank={3} height={44} delay={0.3} glowColor="#CD7F32" crownEmoji="🥉" />
+        {/* Podium layout: 2nd | 1st */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, paddingBottom: 0 }}>
+          <PodiumCard entry={second} rank={2} height={64} delay={0.2} glowColor="#C0C0C0" crownEmoji="🥈" />
+          <PodiumCard entry={first}  rank={1} height={96} delay={0.1} glowColor="#FFD700" crownEmoji="👑" />
         </div>
       </div>
 
       <style>{`
         @keyframes podiumRise { from { opacity:0; transform:translateY(24px) scale(0.9) } to { opacity:1; transform:translateY(0) scale(1) } }
-        @keyframes crownFloat { from { transform:translateY(0) rotate(-5deg) } to { transform:translateY(-5px) rotate(5deg) } }
-        @keyframes avatarGlow { from { box-shadow:0 0 0 3px rgba(255,215,0,0.3),0 0 20px rgba(255,200,0,0.3) } to { box-shadow:0 0 0 5px rgba(255,215,0,0.6),0 0 36px rgba(255,200,0,0.6) } }
+        @keyframes crownFloat { from { transform:translateY(0) rotate(-5deg) } to { transform:translateY(-6px) rotate(5deg) } }
+        @keyframes avatarGlow { from { box-shadow:0 0 0 3px rgba(255,215,0,0.3),0 0 20px rgba(255,200,0,0.3) } to { box-shadow:0 0 0 6px rgba(255,215,0,0.55),0 0 40px rgba(255,200,0,0.6) } }
         @keyframes starTwinkle { from { opacity:0.1 } to { opacity:0.7 } }
       `}</style>
     </div>
@@ -420,9 +407,9 @@ export default function LeaderboardPage() {
         <div>
           {leaderboard.length > 0 ? (
             <>
-              {/* Top 3 Podium */}
+              {/* Top 2 Podium */}
               <div style={{ padding: '0 16px' }}>
-                <TopPodium entries={leaderboard} isTeam={tab === 'team'} />
+                <TopPodium entries={leaderboard} />
               </div>
 
               {/* Rest of list */}
@@ -434,8 +421,8 @@ export default function LeaderboardPage() {
                 borderRadius: '0 0 20px 20px',
                 overflow: 'hidden',
               }}>
-                {leaderboard.slice(3).map((entry, index) => {
-                  const rank = entry.rank || index + 4
+                {leaderboard.slice(2).map((entry, index) => {
+                  const rank = entry.rank || index + 3
                   const isMine = isCurrentUser(entry)
                   const name = entry.displayName || entry.teamName || entry.name || 'Unknown'
                   const pts = entry.totalPoints || entry.points || 0
