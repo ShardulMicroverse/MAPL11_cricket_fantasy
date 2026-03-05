@@ -13,6 +13,21 @@ const getInitials = (name) => {
   return name.substring(0, 2).toUpperCase()
 }
 
+// Sort teams: primary = most wins, secondary = most total points
+const sortAndRankTeams = (teams) => {
+  return [...teams]
+    .sort((a, b) => {
+      const winsA = a.stats?.wins || 0
+      const winsB = b.stats?.wins || 0
+      if (winsB !== winsA) return winsB - winsA
+
+      const pointsA = a.stats?.totalPoints || 0
+      const pointsB = b.stats?.totalPoints || 0
+      return pointsB - pointsA
+    })
+    .map((team, index) => ({ ...team, rank: index + 1 }))
+}
+
 export default function TeamsPage() {
   const navigate = useNavigate()
   const [teams, setTeams] = useState([])
@@ -29,7 +44,8 @@ export default function TeamsPage() {
     try {
       setLoading(true)
       const res = await teamService.getAllPermanentTeams(page, 20, search)
-      setTeams(res.data.teams || [])
+      const sorted = sortAndRankTeams(res.data.teams || [])
+      setTeams(sorted)
       setPagination(res.data.pagination)
     } catch (err) {
       console.error('Error fetching teams:', err)
@@ -98,9 +114,9 @@ export default function TeamsPage() {
       ) : (
         <>
           <div className="teams-list">
-            {teams.map((team, index) => (
+            {teams.map((team) => (
               <Link key={team._id} to={`/team/${team._id}`} className="team-list-item">
-                <div className="team-list-rank">#{team.rank || index + 1}</div>
+                <div className="team-list-rank">#{team.rank}</div>
                 <div className="team-list-info">
                   <div className="team-list-name">{team.teamName}</div>
                   <div className="team-list-members">
@@ -113,7 +129,7 @@ export default function TeamsPage() {
                 </div>
                 <div className="team-list-stats">
                   <div className="team-list-points">{team.stats?.totalPoints || 0}</div>
-                  <div className="team-list-label">pts</div>
+                  <div className="team-list-meta">{team.stats?.wins || 0}W</div>
                 </div>
                 <svg className="team-list-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="9 18 15 12 9 6"/>
