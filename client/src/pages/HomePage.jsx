@@ -225,7 +225,7 @@ function FinalistSplash({ onDismiss }) {
           animation: 'bounceIn 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.5s both',
           textShadow: 'none',
         }}>
-          INDIA IS IN
+          INDIA ARE
         </div>
         <div style={{
           fontFamily: "'Georgia', serif",
@@ -239,7 +239,7 @@ function FinalistSplash({ onDismiss }) {
           animation: 'bounceIn 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.7s both',
           filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.6))',
         }}>
-          THE FINALS!
+          THE CHAMPIONS!!!!
         </div>
 
         {/* Sub tagline */}
@@ -252,7 +252,7 @@ function FinalistSplash({ onDismiss }) {
           textTransform: 'uppercase',
           animation: 'fadeUp 0.6s ease 1s both',
         }}>
-          ✨ One Last Match — Make It Count ✨
+          ✨ Lets be proud of our team India ✨
         </div>
 
         {/* Tap to continue */}
