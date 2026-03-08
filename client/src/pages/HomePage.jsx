@@ -172,8 +172,8 @@ function FinalistSplash({ onDismiss }) {
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase('visible'), 100)
-    const t2 = setTimeout(() => setPhase('exit'), 5500)
-    const t3 = setTimeout(onDismiss, 6200)
+    const t2 = setTimeout(() => setPhase('exit'), 4200)
+    const t3 = setTimeout(onDismiss, 4800)
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [onDismiss])
 
@@ -192,97 +192,67 @@ function FinalistSplash({ onDismiss }) {
     >
       <FireworksCanvas />
 
-      {/* Content */}
+      {/* Tricolor glow rings */}
       <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 24px' }}>
-
-        {/* Tricolor glow orb */}
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 380, height: 380, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,153,0,0.18) 0%, rgba(19,136,8,0.12) 50%, transparent 72%)',
-          filter: 'blur(24px)',
+          width: 320, height: 320, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,153,0,0.15) 0%, rgba(19,136,8,0.1) 50%, transparent 70%)',
+          filter: 'blur(20px)',
           animation: 'pulseGlow 1.5s ease-in-out infinite alternate',
-          pointerEvents: 'none',
         }} />
 
-        {/* Flags */}
+        {/* Flag emoji row */}
         <div style={{
-          fontSize: 50, marginBottom: 10, letterSpacing: 8,
-          animation: 'bounceIn 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s both',
-          filter: 'drop-shadow(0 0 12px rgba(255,153,0,0.6))',
+          fontSize: 48, marginBottom: 12, letterSpacing: 8,
+          animation: 'bounceIn 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.3s both',
         }}>
-          🇮🇳 🏆 🇮🇳
+          🇮🇳 🏏 🇮🇳
         </div>
 
-        {/* INDIA */}
+        {/* Main headline */}
         <div style={{
           fontFamily: "'Georgia', serif",
-          fontSize: 'clamp(60px, 18vw, 112px)',
+          fontSize: 'clamp(36px, 10vw, 72px)',
           fontWeight: 900,
-          lineHeight: 0.9,
-          letterSpacing: '-2px',
-          background: 'linear-gradient(135deg, #FF9500 0%, #FFD700 30%, #ffffff 55%, #138808 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          animation: 'bounceIn 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.38s both',
-        }}>
-          INDIA
-        </div>
-
-        {/* WON THE */}
-        <div style={{
-          fontFamily: "'Georgia', serif",
-          fontSize: 'clamp(20px, 6vw, 44px)',
-          fontWeight: 800,
-          lineHeight: 1.15,
-          marginTop: 6,
-          color: 'rgba(255,255,255,0.88)',
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          animation: 'bounceIn 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.55s both',
-        }}>
-          WON THE
-        </div>
-
-        {/* WORLD CUP! */}
-        <div style={{
-          fontFamily: "'Georgia', serif",
-          fontSize: 'clamp(46px, 13vw, 100px)',
-          fontWeight: 900,
-          lineHeight: 0.95,
+          lineHeight: 1.05,
           letterSpacing: '-1px',
-          background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 35%, #FFE55C 65%, #FFD700 100%)',
+          background: 'linear-gradient(135deg, #FF9500 0%, #ffffff 40%, #138808 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           backgroundClip: 'text',
-          filter: 'drop-shadow(0 0 40px rgba(255,215,0,0.75))',
-          animation: 'bounceIn 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.7s both',
+          animation: 'bounceIn 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.5s both',
+          textShadow: 'none',
         }}>
-          WORLD CUP!
+          INDIA IS IN
         </div>
-
-        {/* Celebration row */}
         <div style={{
-          fontSize: 32, letterSpacing: 6, marginTop: 16,
-          animation: 'fadeUp 0.6s ease 1.1s both',
-          filter: 'drop-shadow(0 0 8px rgba(255,200,0,0.5))',
-        }}>
-          🥇 🎉 🏏 🎉 🥇
-        </div>
-
-        {/* Tagline */}
-        <div style={{
-          marginTop: 14,
           fontFamily: "'Georgia', serif",
-          fontSize: 'clamp(13px, 3vw, 18px)',
-          color: 'rgba(255,255,255,0.78)',
+          fontSize: 'clamp(48px, 14vw, 96px)',
+          fontWeight: 900,
+          lineHeight: 1,
+          background: 'linear-gradient(135deg, #FFD700 20%, #FFA500 60%, #FFD700 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          animation: 'bounceIn 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.7s both',
+          filter: 'drop-shadow(0 0 30px rgba(255,215,0,0.6))',
+        }}>
+          THE FINALS!
+        </div>
+
+        {/* Sub tagline */}
+        <div style={{
+          marginTop: 16,
+          fontFamily: "'Georgia', serif",
+          fontSize: 'clamp(16px, 4vw, 22px)',
+          color: 'rgba(255,255,255,0.85)',
           letterSpacing: 4,
           textTransform: 'uppercase',
-          animation: 'fadeUp 0.6s ease 1.4s both',
+          animation: 'fadeUp 0.6s ease 1s both',
         }}>
-          Champions of the World 🌍
+          ✨ One Last Match — Make It Count ✨
         </div>
 
         {/* Tap to continue */}
@@ -292,7 +262,7 @@ function FinalistSplash({ onDismiss }) {
           color: 'rgba(255,255,255,0.35)',
           letterSpacing: 2,
           textTransform: 'uppercase',
-          animation: 'fadeUp 0.6s ease 2.2s both',
+          animation: 'fadeUp 0.6s ease 1.8s both',
         }}>
           Tap anywhere to continue
         </div>
