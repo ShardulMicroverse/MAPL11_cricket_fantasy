@@ -9,228 +9,308 @@ import MatchCard from '../components/match/MatchCard'
 const getInitials = (name) => {
   if (!name) return 'U'
   const parts = name.trim().split(' ')
-  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+  }
   return name.substring(0, 2).toUpperCase()
 }
 
-// ─── Fireworks Canvas ─────────────────────────────────────────────────────────
-function FireworksCanvas({ fullScreen = false }) {
+// ─── Fireworks Canvas ────────────────────────────────────────────────────────
+function FireworksCanvas() {
   const canvasRef = useRef(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
     const ctx = canvas.getContext('2d')
     let animId
 
     const resize = () => {
-      canvas.width = fullScreen ? window.innerWidth : canvas.offsetWidth
-      canvas.height = fullScreen ? window.innerHeight : canvas.offsetHeight
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
     }
     resize()
-    if (fullScreen) window.addEventListener('resize', resize)
+    window.addEventListener('resize', resize)
 
-    const rand = (a, b) => Math.random() * (b - a) + a
-    const particles = [], rockets = []
-
-    const PALETTES = [
-      ['hsla(45,100%,75%,1)',  'hsla(38,100%,62%,1)',  'hsla(55,100%,85%,1)'],
-      ['hsla(0,0%,100%,1)',   'hsla(210,100%,88%,1)',  'hsla(180,80%,85%,1)'],
-      ['hsla(10,100%,68%,1)', 'hsla(25,100%,62%,1)',   'hsla(50,100%,72%,1)'],
-      ['hsla(120,80%,65%,1)', 'hsla(140,90%,55%,1)',   'hsla(100,80%,70%,1)'],
-      ['hsla(270,100%,78%,1)','hsla(300,100%,72%,1)',  'hsla(240,100%,80%,1)'],
-      ['hsla(0,100%,68%,1)',  'hsla(15,100%,65%,1)',   'hsla(355,100%,72%,1)'],
-    ]
+    const rand = (min, max) => Math.random() * (max - min) + min
+    const particles = []
 
     class Particle {
       constructor(x, y, color) {
-        this.x = x; this.y = y; this.color = color
-        const angle = rand(0, Math.PI * 2), speed = rand(2, 9)
-        this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed
-        this.alpha = 1; this.decay = rand(0.01, 0.02); this.radius = rand(2, 4)
-        this.gravity = 0.1; this.trail = []
+        this.x = x
+        this.y = y
+        this.color = color
+        const angle = rand(0, Math.PI * 2)
+        const speed = rand(2, 9)
+        this.vx = Math.cos(angle) * speed
+        this.vy = Math.sin(angle) * speed
+        this.alpha = 1
+        this.decay = rand(0.012, 0.022)
+        this.radius = rand(2, 4)
+        this.gravity = 0.12
+        this.trail = []
       }
       update() {
-        this.trail.push({ x: this.x, y: this.y, a: this.alpha })
-        if (this.trail.length > 7) this.trail.shift()
-        this.vy += this.gravity; this.x += this.vx; this.y += this.vy; this.vx *= 0.98; this.alpha -= this.decay
+        this.trail.push({ x: this.x, y: this.y, alpha: this.alpha })
+        if (this.trail.length > 6) this.trail.shift()
+        this.vy += this.gravity
+        this.x += this.vx
+        this.y += this.vy
+        this.vx *= 0.98
+        this.alpha -= this.decay
       }
       draw() {
         this.trail.forEach((p, i) => {
-          ctx.beginPath(); ctx.arc(p.x, p.y, this.radius * (i / this.trail.length) * 0.5, 0, Math.PI * 2)
-          ctx.fillStyle = this.color.replace('1)', `${p.a * 0.35})`); ctx.fill()
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, this.radius * (i / this.trail.length) * 0.6, 0, Math.PI * 2)
+          ctx.fillStyle = this.color.replace('1)', `${p.alpha * 0.4})`)
+          ctx.fill()
         })
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
-        ctx.fillStyle = this.color.replace('1)', `${this.alpha})`); ctx.fill()
+        ctx.beginPath()
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
+        ctx.fillStyle = this.color.replace('1)', `${this.alpha})`)
+        ctx.fill()
       }
     }
+
+    const PALETTES = [
+      ['hsla(45,100%,70%,1)', 'hsla(38,100%,60%,1)', 'hsla(55,100%,80%,1)'],   // gold
+      ['hsla(0,0%,100%,1)', 'hsla(210,100%,85%,1)', 'hsla(0,0%,90%,1)'],        // white/silver
+      ['hsla(10,100%,65%,1)', 'hsla(25,100%,60%,1)', 'hsla(50,100%,70%,1)'],    // orange
+      ['hsla(120,80%,65%,1)', 'hsla(140,90%,55%,1)', 'hsla(100,80%,70%,1)'],    // green (India!)
+    ]
 
     const burst = (x, y) => {
       const palette = PALETTES[Math.floor(rand(0, PALETTES.length))]
-      const count = Math.floor(rand(80, 130))
-      for (let i = 0; i < count; i++)
+      const count = Math.floor(rand(60, 100))
+      for (let i = 0; i < count; i++) {
         particles.push(new Particle(x, y, palette[Math.floor(rand(0, palette.length))]))
+      }
     }
 
+    // Launch rockets that explode
+    const rockets = []
     class Rocket {
       constructor() {
-        this.x = rand(canvas.width * 0.05, canvas.width * 0.95)
-        this.y = canvas.height + 5
-        this.vy = rand(-16, -11); this.vx = rand(-2, 2)
-        this.targetY = rand(canvas.height * 0.05, canvas.height * 0.45)
-        this.exploded = false; this.trail = []; this.dead = false
+        this.x = rand(canvas.width * 0.1, canvas.width * 0.9)
+        this.y = canvas.height
+        this.vy = rand(-14, -10)
+        this.vx = rand(-1.5, 1.5)
+        this.targetY = rand(canvas.height * 0.1, canvas.height * 0.45)
+        this.exploded = false
+        this.trail = []
       }
       update() {
         this.trail.push({ x: this.x, y: this.y })
-        if (this.trail.length > 12) this.trail.shift()
-        this.x += this.vx; this.y += this.vy; this.vy += 0.32
-        if (!this.exploded && this.y <= this.targetY) { this.exploded = true; burst(this.x, this.y) }
-        if (this.exploded && this.y > canvas.height + 60) this.dead = true
+        if (this.trail.length > 10) this.trail.shift()
+        this.x += this.vx
+        this.y += this.vy
+        this.vy += 0.3
+        if (this.y <= this.targetY && !this.exploded) {
+          this.exploded = true
+          burst(this.x, this.y)
+        }
       }
       draw() {
-        if (this.exploded) return
         this.trail.forEach((p, i) => {
-          ctx.beginPath(); ctx.arc(p.x, p.y, (i / this.trail.length) * 3, 0, Math.PI * 2)
-          ctx.fillStyle = `hsla(45,100%,82%,${i / this.trail.length})`; ctx.fill()
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, (i / this.trail.length) * 3, 0, Math.PI * 2)
+          ctx.fillStyle = `hsla(45,100%,80%,${i / this.trail.length})`
+          ctx.fill()
         })
-        ctx.beginPath(); ctx.arc(this.x, this.y, 3, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill()
+        if (!this.exploded) {
+          ctx.beginPath()
+          ctx.arc(this.x, this.y, 3, 0, Math.PI * 2)
+          ctx.fillStyle = 'white'
+          ctx.fill()
+        }
       }
     }
 
     let lastLaunch = 0
     const loop = (ts) => {
-      ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0, 0, canvas.width, canvas.height)
-      if (ts - lastLaunch > 280) { rockets.push(new Rocket()); lastLaunch = ts }
-      for (let i = rockets.length - 1; i >= 0; i--) { rockets[i].update(); rockets[i].draw(); if (rockets[i].dead) rockets.splice(i, 1) }
-      for (let i = particles.length - 1; i >= 0; i--) { particles[i].update(); particles[i].draw(); if (particles[i].alpha <= 0) particles.splice(i, 1) }
+      ctx.fillStyle = 'rgba(0,0,0,0.18)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      if (ts - lastLaunch > 350) {
+        rockets.push(new Rocket())
+        lastLaunch = ts
+      }
+
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        rockets[i].update()
+        rockets[i].draw()
+        if (rockets[i].exploded && rockets[i].y > canvas.height + 50) rockets.splice(i, 1)
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update()
+        particles[i].draw()
+        if (particles[i].alpha <= 0) particles.splice(i, 1)
+      }
+
       animId = requestAnimationFrame(loop)
     }
     animId = requestAnimationFrame(loop)
-    return () => { cancelAnimationFrame(animId); if (fullScreen) window.removeEventListener('resize', resize) }
-  }, [fullScreen])
 
-  return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 'inherit' }} />
+    return () => {
+      cancelAnimationFrame(animId)
+      window.removeEventListener('resize', resize)
+    }
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+    />
+  )
 }
 
-// ─── Win Celebration Splash ───────────────────────────────────────────────────
-function WinSplash({ onDismiss }) {
-  const [phase, setPhase] = useState('enter')
+// ─── Splash Screen ────────────────────────────────────────────────────────────
+function FinalistSplash({ onDismiss }) {
+  const [phase, setPhase] = useState('enter') // enter → visible → exit
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('visible'), 80)
+    const t1 = setTimeout(() => setPhase('visible'), 100)
     const t2 = setTimeout(() => setPhase('exit'), 5500)
     const t3 = setTimeout(onDismiss, 6200)
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
   }, [onDismiss])
 
   return (
-    <div onClick={onDismiss} style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'radial-gradient(ellipse at 50% 55%, #061428 0%, #000408 100%)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', overflow: 'hidden',
-      transition: 'opacity 0.8s cubic-bezier(0.4,0,0.2,1)',
-      opacity: phase === 'exit' ? 0 : phase === 'visible' ? 1 : 0,
-    }}>
-      <FireworksCanvas fullScreen />
-
-      {/* Tricolor light beams */}
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-        {[...Array(8)].map((_, i) => (
-          <div key={i} style={{
-            position: 'absolute', bottom: 0, left: '50%',
-            width: 2, height: '80%',
-            transformOrigin: 'bottom center',
-            transform: `translateX(-50%) rotate(${-105 + i * 30}deg)`,
-            background: `linear-gradient(to top, ${['#FF9500','#ffffff','#138808','#FFD700','#FF9500','#138808','#ffffff','#FFD700'][i]}55, transparent)`,
-            animation: `beamSway ${2.5 + i * 0.15}s ease-in-out ${i * 0.1}s infinite alternate`,
-          }} />
-        ))}
-      </div>
+    <div
+      onClick={onDismiss}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'radial-gradient(ellipse at center, #0a1628 0%, #000 100%)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'opacity 0.6s ease',
+        opacity: phase === 'exit' ? 0 : phase === 'visible' ? 1 : 0,
+      }}
+    >
+      <FireworksCanvas />
 
       {/* Content */}
-      <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 28px', userSelect: 'none' }}>
+      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '0 24px' }}>
 
-        {/* Radial glow orb */}
+        {/* Tricolor glow orb */}
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
-          width: 460, height: 460, borderRadius: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(circle, rgba(255,153,0,0.2) 0%, rgba(19,136,8,0.14) 40%, transparent 72%)',
-          filter: 'blur(28px)',
-          animation: 'bigGlow 1.8s ease-in-out infinite alternate',
+          width: 380, height: 380, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,153,0,0.18) 0%, rgba(19,136,8,0.12) 50%, transparent 72%)',
+          filter: 'blur(24px)',
+          animation: 'pulseGlow 1.5s ease-in-out infinite alternate',
           pointerEvents: 'none',
         }} />
 
-        {/* Flags + trophy */}
+        {/* Flags */}
         <div style={{
-          fontSize: 50, letterSpacing: 8, marginBottom: 12,
-          animation: 'bounceIn 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.2s both',
-          filter: 'drop-shadow(0 0 14px rgba(255,153,0,0.65))',
-        }}>🇮🇳 🏆 🇮🇳</div>
+          fontSize: 50, marginBottom: 10, letterSpacing: 8,
+          animation: 'bounceIn 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s both',
+          filter: 'drop-shadow(0 0 12px rgba(255,153,0,0.6))',
+        }}>
+          🇮🇳 🏆 🇮🇳
+        </div>
 
         {/* INDIA */}
         <div style={{
-          fontFamily: "'Georgia', 'Times New Roman', serif",
-          fontSize: 'clamp(60px, 18vw, 118px)',
-          fontWeight: 900, lineHeight: 0.88, letterSpacing: '-2px',
+          fontFamily: "'Georgia', serif",
+          fontSize: 'clamp(60px, 18vw, 112px)',
+          fontWeight: 900,
+          lineHeight: 0.9,
+          letterSpacing: '-2px',
           background: 'linear-gradient(135deg, #FF9500 0%, #FFD700 30%, #ffffff 55%, #138808 100%)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          animation: 'bounceIn 0.85s cubic-bezier(0.34,1.56,0.64,1) 0.38s both',
-        }}>INDIA</div>
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          animation: 'bounceIn 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.38s both',
+        }}>
+          INDIA
+        </div>
 
         {/* WON THE */}
         <div style={{
           fontFamily: "'Georgia', serif",
-          fontSize: 'clamp(22px, 6.5vw, 48px)',
-          fontWeight: 800, lineHeight: 1.1, marginTop: 6,
+          fontSize: 'clamp(20px, 6vw, 44px)',
+          fontWeight: 800,
+          lineHeight: 1.15,
+          marginTop: 6,
           color: 'rgba(255,255,255,0.88)',
-          letterSpacing: '0.18em', textTransform: 'uppercase',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
           animation: 'bounceIn 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.55s both',
-        }}>WON THE</div>
+        }}>
+          WON THE
+        </div>
 
         {/* WORLD CUP! */}
         <div style={{
           fontFamily: "'Georgia', serif",
           fontSize: 'clamp(46px, 13vw, 100px)',
-          fontWeight: 900, lineHeight: 0.95, letterSpacing: '-1px',
+          fontWeight: 900,
+          lineHeight: 0.95,
+          letterSpacing: '-1px',
           background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 35%, #FFE55C 65%, #FFD700 100%)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-          filter: 'drop-shadow(0 0 44px rgba(255,215,0,0.75))',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          filter: 'drop-shadow(0 0 40px rgba(255,215,0,0.75))',
           animation: 'bounceIn 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.7s both',
-        }}>WORLD CUP!</div>
+        }}>
+          WORLD CUP!
+        </div>
 
         {/* Celebration row */}
         <div style={{
-          fontSize: 34, letterSpacing: 6, marginTop: 18,
-          animation: 'fadeSlideUp 0.6s ease 1.1s both',
+          fontSize: 32, letterSpacing: 6, marginTop: 16,
+          animation: 'fadeUp 0.6s ease 1.1s both',
           filter: 'drop-shadow(0 0 8px rgba(255,200,0,0.5))',
-        }}>🥇 🎉 🏏 🎉 🥇</div>
+        }}>
+          🥇 🎉 🏏 🎉 🥇
+        </div>
 
         {/* Tagline */}
         <div style={{
-          marginTop: 16,
+          marginTop: 14,
           fontFamily: "'Georgia', serif",
-          fontSize: 'clamp(13px, 3.2vw, 18px)',
+          fontSize: 'clamp(13px, 3vw, 18px)',
           color: 'rgba(255,255,255,0.78)',
-          letterSpacing: '0.22em', textTransform: 'uppercase',
-          animation: 'fadeSlideUp 0.6s ease 1.4s both',
-        }}>Champions of the World 🌍</div>
+          letterSpacing: 4,
+          textTransform: 'uppercase',
+          animation: 'fadeUp 0.6s ease 1.4s both',
+        }}>
+          Champions of the World 🌍
+        </div>
 
-        {/* Tap hint */}
+        {/* Tap to continue */}
         <div style={{
-          marginTop: 38, fontSize: 12,
-          color: 'rgba(255,255,255,0.28)',
-          letterSpacing: '0.2em', textTransform: 'uppercase',
-          animation: 'fadeSlideUp 0.6s ease 2.2s both',
-        }}>Tap anywhere to continue</div>
+          marginTop: 40,
+          fontSize: 13,
+          color: 'rgba(255,255,255,0.35)',
+          letterSpacing: 2,
+          textTransform: 'uppercase',
+          animation: 'fadeUp 0.6s ease 2.2s both',
+        }}>
+          Tap anywhere to continue
+        </div>
       </div>
 
       <style>{`
-        @keyframes bounceIn    { from { opacity:0; transform:scale(0.3) translateY(40px) } to { opacity:1; transform:scale(1) translateY(0) } }
-        @keyframes fadeSlideUp { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
-        @keyframes bigGlow     { from { opacity:0.5; transform:translate(-50%,-50%) scale(0.88) } to { opacity:1; transform:translate(-50%,-50%) scale(1.12) } }
-        @keyframes beamSway    { from { opacity:0.15 } to { opacity:0.55 } }
+        @keyframes bounceIn {
+          from { opacity: 0; transform: scale(0.4) translateY(30px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulseGlow {
+          from { opacity: 0.6; transform: translate(-50%,-50%) scale(0.95); }
+          to   { opacity: 1;   transform: translate(-50%,-50%) scale(1.08); }
+        }
       `}</style>
     </div>
   )
@@ -276,7 +356,7 @@ export default function HomePage() {
 
   return (
     <>
-      {showSplash && <WinSplash onDismiss={() => setShowSplash(false)} />}
+      {showSplash && <FinalistSplash onDismiss={() => setShowSplash(false)} />}
 
       <div className="home-page">
         {/* Hero Welcome Section */}
@@ -287,7 +367,9 @@ export default function HomePage() {
             <p className="welcome-subtitle">Ready to play fantasy cricket?</p>
           </div>
           <div className="welcome-avatar">
-            <div className="avatar-large">{getInitials(user?.displayName)}</div>
+            <div className="avatar-large">
+              {getInitials(user?.displayName)}
+            </div>
           </div>
         </div>
 
@@ -296,7 +378,8 @@ export default function HomePage() {
           <div className="stat-card">
             <div className="stat-icon secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 0 0 8 0"/>
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 12a4 4 0 0 0 8 0"/>
               </svg>
             </div>
             <div className="stat-details">
@@ -307,8 +390,10 @@ export default function HomePage() {
           <div className="stat-card">
             <div className="stat-icon accent">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
-                <path d="M4 22h16"/><rect x="6" y="3" width="12" height="10" rx="2"/>
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+                <path d="M4 22h16"/>
+                <rect x="6" y="3" width="12" height="10" rx="2"/>
               </svg>
             </div>
             <div className="stat-details">
@@ -382,7 +467,8 @@ export default function HomePage() {
                   <span className="team-stat-value">
                     {myTeam.stats?.matchesPlayed > 0
                       ? `${Math.round((myTeam.stats.wins / myTeam.stats.matchesPlayed) * 100)}%`
-                      : '0%'}
+                      : '0%'
+                    }
                   </span>
                   <span className="team-stat-label">Win Rate</span>
                 </div>
@@ -410,11 +496,17 @@ export default function HomePage() {
           <section className="matches-section">
             <div className="section-header">
               <h3 className="section-title">
-                <span className="live-indicator"><span className="live-dot"></span>LIVE</span> Matches
+                <span className="live-indicator">
+                  <span className="live-dot"></span>
+                  LIVE
+                </span>
+                Matches
               </h3>
             </div>
             <div className="matches-list">
-              {liveMatches.map(match => <MatchCard key={match._id} match={match} />)}
+              {liveMatches.map(match => (
+                <MatchCard key={match._id} match={match} />
+              ))}
             </div>
           </section>
         )}
@@ -425,7 +517,8 @@ export default function HomePage() {
             <h3 className="section-title">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="section-icon">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
               Upcoming Matches
@@ -441,13 +534,16 @@ export default function HomePage() {
           </div>
           {upcomingMatches.length > 0 ? (
             <div className="matches-list">
-              {upcomingMatches.slice(0, 3).map(match => <MatchCard key={match._id} match={match} />)}
+              {upcomingMatches.slice(0, 3).map(match => (
+                <MatchCard key={match._id} match={match} />
+              ))}
             </div>
           ) : (
             <div className="empty-state-card">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="3" y="4" width="18" height="18" rx="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
                 <line x1="3" y1="10" x2="21" y2="10"/>
               </svg>
               <p>No upcoming matches scheduled</p>
@@ -461,7 +557,9 @@ export default function HomePage() {
           <Link to="/matches" className="action-card">
             <div className="action-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/><path d="M8 12a4 4 0 0 0 8 0"/><circle cx="12" cy="6" r="1.5"/>
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 12a4 4 0 0 0 8 0"/>
+                <circle cx="12" cy="6" r="1.5"/>
               </svg>
             </div>
             <span>All Matches</span>
@@ -469,7 +567,10 @@ export default function HomePage() {
           <Link to="/leaderboard" className="action-card">
             <div className="action-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M8 21V11"/><path d="M12 21V7"/><path d="M16 21V13"/><circle cx="12" cy="4" r="2"/>
+                <path d="M8 21V11"/>
+                <path d="M12 21V7"/>
+                <path d="M16 21V13"/>
+                <circle cx="12" cy="4" r="2"/>
               </svg>
             </div>
             <span>Leaderboard</span>
@@ -477,7 +578,8 @@ export default function HomePage() {
           <Link to="/profile" className="action-card">
             <div className="action-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
               </svg>
             </div>
             <span>My Profile</span>
