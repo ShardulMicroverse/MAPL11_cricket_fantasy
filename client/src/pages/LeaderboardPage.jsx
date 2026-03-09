@@ -214,7 +214,7 @@ function TopPodium({ entries }) {
           <div style={{
             fontSize: 11, color: 'rgba(255,153,0,0.7)',
             letterSpacing: '0.25em', textTransform: 'uppercase', fontWeight: 600,
-          }}>🏏 One Last Match To Go</div>
+          }}>🏏 Congratulations TO WINNERS</div>
         </div>
 
         {/* Podium layout: 2nd | 1st */}
